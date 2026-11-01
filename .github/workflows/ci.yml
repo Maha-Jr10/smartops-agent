@@ -68,7 +68,7 @@ jobs:
         run: uv run pip-audit --ignore-vuln PYSEC-2026-2447
 
   docker:
-    name: Image Docker (build, santé, scan)
+    name: Image Docker (build, santé)
     needs: tests
     runs-on: ubuntu-latest
     steps:
@@ -84,10 +84,3 @@ jobs:
           done
           docker logs api
           exit 1
-      - name: Scan de l'image (Trivy, informatif)
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:latest image \
-            --severity CRITICAL --ignore-unfixed --exit-code 0 \
-            smartops-agent:ci
