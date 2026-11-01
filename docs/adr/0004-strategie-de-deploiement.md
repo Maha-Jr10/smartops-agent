@@ -1,6 +1,6 @@
 # ADR 0004 : Shadow puis canary pour promouvoir une nouvelle version
 
-**Statut :** proposé (phase 4)
+**Statut :** accepté
 
 ## Contexte
 Une nouvelle version de l'agent (nouveau prompt ou nouveau modèle) peut passer les tests

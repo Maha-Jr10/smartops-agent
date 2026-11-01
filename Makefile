@@ -81,6 +81,35 @@ docker-up: ## Lance la stack (API, MLflow, Prometheus, Grafana)
 docker-down: ## Arrête la stack
 > docker compose down
 
+smoke: ## Smoke test /health apres docker compose up (attendre que l'API demarre)
+> $(UV) python -c "\
+import sys, time, urllib.request;\
+url='http://localhost:8000/health';\
+[time.sleep(2) for _ in range(10) if not [print('ok') for _ in range(1) if __import__('contextlib').suppress(Exception) or True]];\
+import urllib.request;\
+r=urllib.request.urlopen(url,timeout=5);\
+assert r.status==200,'health check failed';\
+print('smoke: /health OK')"
+
+shadow: ## Shadow deployment: CANDIDATE_IMAGE=smartops-agent:<tag> make shadow
+> docker compose -f docker-compose.yml -f docker-compose.shadow.yml up -d
+> @echo "Shadow started. Compare traces then run: make canary CANDIDATE_IMAGE=$$CANDIDATE_IMAGE"
+
+canary: ## Canary deployment (10 % trafic): CANDIDATE_IMAGE=smartops-agent:<tag> make canary
+> docker compose -f docker-compose.yml -f docker-compose.canary.yml up -d
+> @echo "Canary started on :8080. Monitor gates, then run: make promote or make rollback"
+
+promote: ## Promovoir le candidat comme stable (mettre a jour IMAGE_TAG dans .env)
+> @echo "Promoting CANDIDATE_IMAGE=$(CANDIDATE_IMAGE) to stable."
+> @echo "1. Run: docker tag $(CANDIDATE_IMAGE) smartops-agent:stable"
+> @echo "2. Update IMAGE_TAG in .env, then: make docker-up"
+> @echo "3. Run: make docker-down && docker compose up -d --build"
+
+rollback: ## Retour arriere : stoppe le canary, relance le stable
+> docker compose down
+> docker compose up -d --build
+> @echo "Rollback complete: stable version is running."
+
 tf-init: ## Terraform : initialisation
 > terraform -chdir=$(TF_DIR) init
 

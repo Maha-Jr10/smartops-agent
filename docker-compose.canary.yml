@@ -1,0 +1,27 @@
+# Canary deployment overlay (10 % du trafic vers le candidat).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.canary.yml up -d
+# Le proxy Nginx dirige ~10 % des requetes vers api-candidate.
+services:
+  api-candidate:
+    image: ${CANDIDATE_IMAGE:-smartops-agent:candidate}
+    environment:
+      APP_ENV: canary
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      SMARTOPS_CONFIG_DIR: /app/configs
+    env_file:
+      - path: .env
+        required: false
+    depends_on: [mlflow]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  canary-proxy:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./infra/nginx/canary.conf:/etc/nginx/conf.d/default.conf:ro
+    ports: ["8080:80"]
+    depends_on: [api, api-candidate]

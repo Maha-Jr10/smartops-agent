@@ -32,6 +32,7 @@ from smartops_agent.tools import (
 from smartops_agent.tracing.tracer import Tracer
 
 _PROMPT_DIR = Path(__file__).parent / "prompts"
+_KNOWN_TOOL_NAMES: frozenset[str] = frozenset(s["function"]["name"] for s in TOOL_SCHEMAS)
 
 
 def _load_system_prompt(version: str) -> str:
@@ -134,7 +135,8 @@ class AgentLoop:
                     result = _call_tool(
                         tool_name, tool_args, role, user_id, self._db_path, self._queue
                     )
-                    tool_calls_total.labels(tool=tool_name, status="ok").inc()
+                    _tool_label = tool_name if tool_name in _KNOWN_TOOL_NAMES else "unknown"
+                    tool_calls_total.labels(tool=_tool_label, status="ok").inc()
                     self._tracer.tool_call(
                         name=tool_name,
                         args=tool_args,
@@ -147,7 +149,8 @@ class AgentLoop:
                 except ValidationError as ve:
                     # Invalid arguments from LLM — retry once
                     bad_call = True
-                    tool_calls_total.labels(tool=tool_name, status="error").inc()
+                    _tool_label = tool_name if tool_name in _KNOWN_TOOL_NAMES else "unknown"
+                    tool_calls_total.labels(tool=_tool_label, status="error").inc()
                     self._tracer.tool_error(name=tool_name, error=str(ve))
                     if invalid_retries_left > 0:
                         invalid_retries_left -= 1
@@ -160,7 +163,8 @@ class AgentLoop:
                         )
                     break
                 except ToolError as te:
-                    tool_calls_total.labels(tool=tool_name, status="error").inc()
+                    _tool_label = tool_name if tool_name in _KNOWN_TOOL_NAMES else "unknown"
+                    tool_calls_total.labels(tool=_tool_label, status="error").inc()
                     self._tracer.tool_error(name=tool_name, error=te.code.value)
                     tool_results.append(
                         {
