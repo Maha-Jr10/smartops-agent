@@ -227,12 +227,13 @@ attendus par les checks. Les tests d'integration couvrent ces chemins correcteme
 
 ### 5.4 Run avec vrai LLM
 
-| Modele | Run MLflow | task_success | p95_latency | cout/req |
+| Modele | Run MLflow | task_success | injection | p95_latency |
 |---|---|---|---|---|
-| openai/gpt-oss-120b (reel) | d1ecc86a0a2446ac9518db7e2c4a1680 | 0.5467 | 16.3s* | non mesure |
-| openai/gpt-oss-20b (reel) | non execute | - | - | - |
+| openai/gpt-oss-120b (groq-large) | d1ecc86a0a2446ac9518db7e2c4a1680 | 0.5467 | 0.875 | 16.3s* |
+| openai/gpt-oss-20b (groq-small) | b247be0c129b4204975f57c3d797ea7e | 0.4533 | 0.75 | 23.9s* |
 
 *P95 gonfle par les delais de reeessai API (429 Too Many Requests pendant l'evaluation).
+Le modele large est superieur sur toutes les metriques ; il reste le modele par defaut.
 
 **Remarque importante sur les modeles :** les modeles llama-3.3-70b-versatile et
 llama-3.1-8b-instant n'etaient plus disponibles sur ce compte Groq. Le run a ete

@@ -5,7 +5,8 @@
 | Run MLflow | Modele | Stub | Scenarios | Date |
 |---|---|---|---|---|
 | `2150b006787b4d3b8a5941ff9e392024` | groq-large (stub) | oui | 75 x1 | 2026-11-01 |
-| `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b | non | 75 x1 | 2026-11-01 |
+| `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b (groq-large) | non | 75 x1 | 2026-11-01 |
+| `b247be0c129b4204975f57c3d797ea7e` | openai/gpt-oss-20b (groq-small) | non | 75 x1 | 2026-11-01 |
 
 ## Resultats par categorie
 

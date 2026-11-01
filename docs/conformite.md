@@ -129,13 +129,13 @@ provisoires jusqu'au premier run avec GROQ_API_KEY.
 
 ## Ce qui necessite une action du binome
 
-| Action | Raison |
+| Action | Etat |
 |---|---|
-| Executer `make repro` avec GROQ_API_KEY | Valider les seuils baseline avec un vrai LLM |
-| Renseigner les runs reels dans `docs/evaluation.md` | Completer le tableau de comparaison groq-large vs groq-small |
-| Renseigner les runs reels dans `docs/reproductibilite.md` | Remplacer les PLACEHOLDER |
-| Enregistrer la video 2 minutes | `docs/demo-script.md` donne le script exact |
-| Creer le tag v1.0.0 et pousser | `CHANGELOG.md` donne la commande exacte |
+| Executer l'evaluation avec GROQ_API_KEY | Fait : run d1ecc86a0a2446ac9518db7e2c4a1680 (openai/gpt-oss-120b) |
+| Renseigner les runs reels dans `docs/evaluation.md` | Fait |
+| Renseigner les runs reels dans `docs/reproductibilite.md` | Fait |
+| Enregistrer la video 2 minutes | A faire : `docs/demo-script.md` donne le script exact |
+| Creer le tag v1.0.0 et pousser | A faire : `CHANGELOG.md` donne la commande exacte |
 
 ## Ce qui manque ou reste provisoire
 

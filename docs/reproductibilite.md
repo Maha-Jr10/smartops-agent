@@ -23,6 +23,7 @@ reproduit exactement le run de reference (LLM simule, graine fixe).
 |---|---|---|---|---|---|---|
 | v1.0.0 | `2150b006787b4d3b8a5941ff9e392024` | groq-large (stub) | v1 | 75 x1 | 0.6667 | 1.0 |
 | v1.0.0 | `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.5467 | 1.0 |
+| v1.0.0 | `b247be0c129b4204975f57c3d797ea7e` | openai/gpt-oss-20b (reel) | v2 | 75 x1 | 0.4533 | 1.0 |
 
 ## Graine des donnees
 
