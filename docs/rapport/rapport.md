@@ -1,7 +1,7 @@
 # SmartOps Agent : rapport de projet
 
 **ENSAF ISDIA3 - Mini-projet MLOps, 2026-2027**
-Binome : (noms a renseigner)
+Binome : JOHN Muhammed & Allah N'diguim Japhet
 Date : 2026-11-01
 
 ---

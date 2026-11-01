@@ -34,7 +34,7 @@ Règle : aucune extension avant que le périmètre obligatoire soit terminé et 
 
 ## Répartition du binôme
 
-| Muhammed | Binôme |
+| JOHN Muhammed | Allah N'diguim Japhet |
 |---|---|
 | Boucle agent, outils, garde-fous | Base fictive et jeu de scénarios |
 | API, traces, métriques Prometheus | Harnais d'évaluation, MLflow, quality gates |

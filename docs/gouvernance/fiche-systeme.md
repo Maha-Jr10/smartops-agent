@@ -18,5 +18,5 @@
 | Traces | JSONL + MLflow Tracing ; raisonnement interne masque ; emails et telephones masques |
 | Deploiement | Docker Compose (stack locale), shadow/canary via overlays Nginx |
 | Monitoring | Prometheus + Grafana (latence P50/P95/P99, erreurs, appels outils) ; Evidently (derive) |
-| Contact | Binome ISDIA3 ENSAF |
+| Contact | JOHN Muhammed & Allah N'diguim Japhet, ISDIA3 ENSAF |
 | ADR | 0001 boucle agent, 0002 commissions deterministes, 0003 versionnement, 0004 deploiement shadow/canary, 0005 choix modeles |
