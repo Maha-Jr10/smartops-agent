@@ -14,9 +14,9 @@ pytestmark = pytest.mark.unit
 
 def _count(db_path: Path, table: str) -> int:
     con = sqlite3.connect(db_path)
-    n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
+    row = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
     con.close()
-    return n
+    return int(row[0])
 
 
 def test_seed_is_deterministic(tmp_path: Path) -> None:

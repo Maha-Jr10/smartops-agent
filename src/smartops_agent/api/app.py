@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -23,6 +24,15 @@ from smartops_agent.monitoring.metrics import (
     llm_calls_daily,
 )
 from smartops_agent.tracing.tracer import Tracer
+
+log = logging.getLogger(__name__)
+
+_VALID_ROLES = frozenset({"commercial", "delivery", "admin"})
+
+
+def _safe_role_label(role: str) -> str:
+    return role if role in _VALID_ROLES else "unknown"
+
 
 # ---------------------------------------------------------------------------
 # Request / Response models
@@ -95,28 +105,27 @@ def create_app(
     model_info = models_cfg["models"][default_model_name]
 
     trace_dir = Path("reports/traces")
-    tracer = Tracer(
-        trace_dir=trace_dir,
-        prompt_version=agent_cfg.get("prompt_version", "v1"),
-        model_id=model_info.get("model_id", "unknown"),
-    )
+    _prompt_version = agent_cfg.get("prompt_version", "v1")
+    _model_id = model_info.get("model_id", "unknown")
 
-    def _get_agent() -> AgentLoop:
+    def _make_agent() -> tuple[AgentLoop, Tracer]:
+        tracer = Tracer(trace_dir=trace_dir, prompt_version=_prompt_version, model_id=_model_id)
         llm = build_llm_client(
             provider=model_info["provider"],
             model_id=model_info["model_id"],
         )
-        return AgentLoop(
+        loop = AgentLoop(
             llm=llm,
             db_path=effective_db,
             queue=effective_queue,
             tracer=tracer,
-            prompt_version=agent_cfg.get("prompt_version", "v1"),
+            prompt_version=_prompt_version,
             max_iterations=agent_cfg.get("max_iterations", 6),
             llm_timeout=agent_cfg.get("llm_timeout_s", 20.0),
             tool_timeout=agent_cfg.get("tool_timeout_s", 5.0),
             retries_on_invalid=agent_cfg.get("retries_on_invalid_output", 1),
         )
+        return loop, tracer
 
     app = FastAPI(title="SmartOps Agent", version=__version__)
 
@@ -130,19 +139,23 @@ def create_app(
         _check_rate_limit(client_ip, settings.rate_limit_per_minute)
         _check_daily_llm_cap(settings.daily_llm_call_cap)
 
+        role_label = _safe_role_label(req.role)
         t0 = time.monotonic()
         try:
-            agent = _get_agent()
+            agent, tracer = _make_agent()
             answer = agent.run(
                 user_message=req.message,
                 role=req.role,
                 user_id=req.user_id,
             )
-            chat_requests_total.labels(role=req.role, status="ok").inc()
+            chat_requests_total.labels(role=role_label, status="ok").inc()
             return ChatResponse(answer=answer, trace_id=tracer._data.get("trace_id", ""))
         except Exception as exc:
-            chat_requests_total.labels(role=req.role, status="error").inc()
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            log.exception("Unhandled error in /chat")
+            chat_requests_total.labels(role=role_label, status="error").inc()
+            raise HTTPException(
+                status_code=500, detail="Erreur interne. Contactez l'administrateur."
+            ) from exc
         finally:
             chat_latency_seconds.observe(time.monotonic() - t0)
 

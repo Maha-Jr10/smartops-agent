@@ -21,6 +21,7 @@ htmlcov/
 *.key
 
 # MLOps (versionné par DVC ou généré)
+mlflow.db
 mlruns/
 mlartifacts/
 /data/seed/*
@@ -29,6 +30,7 @@ mlartifacts/
 !/reports/eval/.gitkeep
 /reports/monitoring/*
 !/reports/monitoring/.gitkeep
+/reports/traces/
 /logs/*
 !/logs/.gitkeep
 

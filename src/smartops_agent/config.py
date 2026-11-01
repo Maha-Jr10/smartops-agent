@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     groq_api_key: SecretStr | None = None
     ollama_base_url: str = "http://localhost:11434"
-    mlflow_tracking_uri: str = "./mlruns"
+    mlflow_tracking_uri: str = "sqlite:///mlflow.db"
     daily_llm_call_cap: int = 500
     rate_limit_per_minute: int = 10
 

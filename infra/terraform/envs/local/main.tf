@@ -40,6 +40,7 @@ resource "docker_container" "mlflow" {
   ports {
     internal = 5000
     external = var.mlflow_port
+    ip       = "127.0.0.1"
   }
   volumes {
     volume_name    = docker_volume.mlflow.name
@@ -62,6 +63,7 @@ resource "docker_container" "api" {
   ports {
     internal = 8000
     external = var.api_port
+    ip       = "127.0.0.1"
   }
   healthcheck {
     test     = ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

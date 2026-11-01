@@ -61,7 +61,7 @@ class Tracer:
         self._steps.append({"type": "llm", "iteration": iteration, "latency_s": round(latency, 3)})
 
     def llm_error(self, error: str) -> None:
-        self._steps.append({"type": "llm_error", "error": error})
+        self._steps.append({"type": "llm_error", "error": mask_pii_in_dict(error)})
 
     def tool_call(
         self, name: str, args: dict[str, Any], result: dict[str, Any], latency: float
@@ -77,7 +77,7 @@ class Tracer:
         )
 
     def tool_error(self, name: str, error: str) -> None:
-        self._steps.append({"type": "tool_error", "tool": name, "error": error})
+        self._steps.append({"type": "tool_error", "tool": name, "error": mask_pii_in_dict(error)})
 
     def finish(self, answer: str, iterations: int, escalated: bool = False) -> None:
         self._data["steps"] = self._steps

@@ -1,9 +1,16 @@
-# Évaluation de l'agent sur le jeu de scénarios avec un vrai LLM, puis quality gates.
-# Déclenchement manuel pour l'instant. En phase 2, ajouter le déclencheur pull_request vers main.
+# Évaluation de l'agent sur le jeu de scénarios, puis quality gates.
+# Déclenché sur chaque pull request vers main (avec LLM simulé si pas de clé).
 name: Eval gate
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "src/**"
+      - "data/scenarios/**"
+      - "configs/**"
+      - "params.yaml"
 
 permissions:
   contents: read
@@ -20,8 +27,22 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --all-extras --group dev
-      - name: Pipeline DVC (données, évaluation, gates)
-        run: uv run dvc repro
+      - name: Générer la base CRM fictive
+        run: uv run python -m smartops_agent.data.seed params.yaml data/seed/crm.sqlite
+      - name: Evaluation
+        run: |
+          if [ -n "$GROQ_API_KEY" ]; then
+            uv run python -m smartops_agent.evaluation.run \
+              --scenarios data/scenarios/scenarios_v1.jsonl \
+              --db data/seed/crm.sqlite --model groq-large --repeats 3
+          else
+            echo "Pas de clé API — utilisation du LLM simulé"
+            uv run python -m smartops_agent.evaluation.run \
+              --scenarios data/scenarios/scenarios_v1.jsonl \
+              --db data/seed/crm.sqlite --model groq-large --repeats 1 --stub
+          fi
+      - name: Quality gates
+        run: uv run python -m smartops_agent.evaluation.gates
       - uses: actions/upload-artifact@v4
         if: always()
         with:
