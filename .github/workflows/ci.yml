@@ -64,7 +64,8 @@ jobs:
       - name: Analyse statique (bandit)
         run: uv run bandit -c pyproject.toml -r src
       - name: Vulnérabilités des dépendances (pip-audit)
-        run: uv run pip-audit
+        # PYSEC-2026-2447 : vulnérabilité diskcache sans correctif compatible, documentée dans docs/conformite.md
+        run: uv run pip-audit --ignore-vuln PYSEC-2026-2447
 
   docker:
     name: Image Docker (build, santé, scan)
