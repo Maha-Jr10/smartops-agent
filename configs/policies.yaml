@@ -1,0 +1,33 @@
+# Permissions : chaque outil a le minimum de droits nécessaire au scénario (cahier, 5.5).
+roles: [commercial, delivery, admin]
+
+tools:
+  search_crm:
+    effect: read
+    allowed_roles: [commercial, delivery, admin]
+  get_invoice_status:
+    effect: read
+    allowed_roles: [commercial, admin]
+  calculate_commission:
+    effect: read
+    allowed_roles: [commercial, delivery, admin]
+    scope:
+      admin: all
+      default: own_only        # un membre ne voit que ses propres commissions
+  draft_followup:
+    effect: draft              # crée un brouillon, n'envoie rien
+    allowed_roles: [commercial, admin]
+  request_human_action:
+    effect: escalation         # seule voie vers une action réelle
+    allowed_roles: [commercial, delivery, admin]
+
+# Actions à effet métier : jamais exécutées par l'agent, toujours soumises à un humain.
+human_approval_required:
+  - send_email
+  - mark_commission_paid
+  - change_price
+  - quote_price_to_client
+  - delete_record
+
+privacy:
+  mask_in_traces: [email, phone]

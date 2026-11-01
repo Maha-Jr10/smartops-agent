@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Outils
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Secrets : jamais dans Git
+.env
+*.pem
+*.key
+
+# MLOps (versionné par DVC ou généré)
+mlruns/
+mlartifacts/
+/data/seed/*
+!/data/seed/.gitkeep
+/reports/eval/*
+!/reports/eval/.gitkeep
+/reports/monitoring/*
+!/reports/monitoring/.gitkeep
+/logs/*
+!/logs/.gitkeep
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/settings.local.json

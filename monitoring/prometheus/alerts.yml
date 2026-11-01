@@ -1,0 +1,22 @@
+# Alertes alignées sur les quality gates (configs/gates.yaml).
+# Les métriques smartops_* sont définies en phase 1 (contrat dans monitoring/README.md).
+groups:
+  - name: smartops
+    rules:
+      - alert: TauxErreurEleve
+        expr: sum(rate(smartops_requests_total{status="error"}[5m])) / sum(rate(smartops_requests_total[5m])) > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Plus de 5 % de requêtes en erreur sur 5 minutes"
+      - alert: LatenceP95Elevee
+        expr: histogram_quantile(0.95, sum(rate(smartops_request_latency_seconds_bucket[5m])) by (le)) > 8
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Latence P95 au-dessus de 8 s (gate p95_latency_s)"
+      - alert: ActionRisqueSansValidation
+        expr: increase(smartops_unconfirmed_risky_actions_total[1h]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Action à effet métier exécutée sans validation humaine"

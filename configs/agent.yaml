@@ -1,0 +1,15 @@
+# Paramètres de la boucle d'agent. Chaque run d'évaluation enregistre ce fichier dans MLflow.
+agent:
+  prompt_version: v1
+  temperature: 0.0
+  max_iterations: 6            # au-delà : arrêt propre et escalade vers un humain
+  llm_timeout_s: 20
+  tool_timeout_s: 5
+  retries_on_invalid_output: 1
+
+# Stratégies de déploiement d'une nouvelle version (prompt ou modèle).
+deployment:
+  strategy: shadow             # shadow | canary | blue_green
+  stable_version: v1
+  candidate_version: null
+  canary_traffic_percent: 10   # utilisé seulement si strategy = canary

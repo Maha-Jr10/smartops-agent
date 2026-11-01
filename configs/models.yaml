@@ -1,0 +1,21 @@
+# Modèles candidats comparés dans MLflow.
+# Vérifier la disponibilité des identifiants et les prix sur la page officielle du fournisseur
+# avant la première expérience : les prix (USD par million de tokens) sont à renseigner.
+default: groq-large
+
+models:
+  groq-large:
+    provider: groq
+    model_id: llama-3.3-70b-versatile
+    price_input_per_mtok: null
+    price_output_per_mtok: null
+  groq-small:
+    provider: groq
+    model_id: llama-3.1-8b-instant
+    price_input_per_mtok: null
+    price_output_per_mtok: null
+  local:
+    provider: ollama
+    model_id: qwen2.5:7b
+    price_input_per_mtok: 0
+    price_output_per_mtok: 0

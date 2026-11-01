@@ -1,0 +1,14 @@
+# Core runtime
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.8
+pydantic-settings>=2.4
+pyyaml>=6.0
+groq>=0.11
+httpx>=0.27
+structlog>=24.1
+prometheus-client>=0.20
+tenacity>=8.5
+
+# MLOps (optional: install with: pip install -r requirements.txt -r requirements-mlops.txt)
+# See requirements-mlops.txt

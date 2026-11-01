@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Qualité du code (lint, types)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev
+      - name: Lint
+        run: |
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+      - name: Types
+        run: uv run mypy
+
+  tests:
+    name: Tests unitaires et d'intégration
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev
+      - name: Tests avec couverture (gate 80 %)
+        run: uv run pytest -m "unit or integration" --cov --cov-report=xml --cov-report=term
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  security:
+    name: Sécurité (secrets, code, dépendances)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev
+      - name: Analyse statique (bandit)
+        run: uv run bandit -c pyproject.toml -r src
+      - name: Vulnérabilités des dépendances (pip-audit)
+        run: uv run pip-audit
+
+  docker:
+    name: Image Docker (build, santé, scan)
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build -f docker/Dockerfile -t smartops-agent:ci .
+      - name: Démarrage et endpoint de santé
+        run: |
+          docker run -d --name api -p 8000:8000 smartops-agent:ci
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8000/health && exit 0
+            sleep 2
+          done
+          docker logs api
+          exit 1
+      - name: Scan de l'image (Trivy, échec sur vulnérabilité critique)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: smartops-agent:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

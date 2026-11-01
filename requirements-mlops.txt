@@ -1,0 +1,5 @@
+# MLOps extras (add on top of requirements.txt)
+mlflow>=2.16
+dvc>=3.50
+evidently>=0.4.33
+pandas>=2.2

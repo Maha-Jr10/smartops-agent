@@ -1,0 +1,35 @@
+# Pipeline reproductible : génération des données, évaluation, quality gates.
+# Les modules appelés sont construits en phases 1 et 2 (voir docs/plan.md).
+stages:
+  seed_data:
+    cmd: python -m smartops_agent.data.seed
+    deps:
+      - src/smartops_agent/data
+    params:
+      - seed
+    outs:
+      - data/seed/crm.sqlite
+
+  evaluate:
+    cmd: python -m smartops_agent.evaluation.run
+    deps:
+      - src/smartops_agent
+      - data/seed/crm.sqlite
+      - data/scenarios
+      - configs
+    params:
+      - evaluation
+    metrics:
+      - reports/eval/metrics.json:
+          cache: false
+    outs:
+      - reports/eval/results.jsonl
+
+  gates:
+    cmd: python -m smartops_agent.evaluation.gates
+    deps:
+      - reports/eval/metrics.json
+      - configs/gates.yaml
+    outs:
+      - reports/eval/gates.json:
+          cache: false
