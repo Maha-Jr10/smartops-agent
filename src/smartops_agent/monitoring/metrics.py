@@ -37,3 +37,14 @@ approval_queue_size = Gauge(
     "smartops_approval_queue_size",
     "Nombre de demandes d'approbation en attente",
 )
+
+escalations_total = Counter(
+    "smartops_escalations_total",
+    "Nombre d'escalades vers un humain",
+    ["reason"],
+)
+
+unconfirmed_risky_actions_total = Counter(
+    "smartops_unconfirmed_risky_actions_total",
+    "Actions metier executees sans validation humaine",
+)

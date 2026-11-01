@@ -83,6 +83,6 @@ docs/           cadrage, plan, spécifications, ADR, gouvernance, cahier des cha
 - [x] Phase 0 : mise en place du projet
 - [x] Phase 1 : cœur de l'agent
 - [x] Phase 2 : évaluation et expériences
-- [ ] Phase 3 : observabilité
+- [x] Phase 3 : observabilité
 - [ ] Phase 4 : déploiement
 - [ ] Phase 5 : livrables

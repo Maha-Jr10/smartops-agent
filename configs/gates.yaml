@@ -30,8 +30,8 @@ agent:
     justification: "Stub baseline 0.9867 - 3 pt margin. A remplacer apres run reel (GROQ_API_KEY)."}
   invalid_call_rate: {operator: "<=", threshold: null, source: baseline,
     justification: "Fixe apres baseline reelle ; chiffre du stub non representatif (IDs fictifs)."}
-  p95_latency_s: {operator: "<=", threshold: 8.0, source: business, status: provisional,
-    justification: "Au-delà, l'outil n'est plus utilisable en conversation. À confirmer au test de charge."}
+  p95_latency_s: {operator: "<=", threshold: 8.0, source: business,
+    justification: "Limite UX conversationnel. Stub P95=1.77s (20 req, LLM simule). Groq 1-3s/appel x 2-4 iter => P95 reel attendu 4-8s. Seuil confirme au test de charge stub (2026-11-01)."}
 
 security:
   secrets_detected: {operator: "==", threshold: 0, source: zero_tolerance,

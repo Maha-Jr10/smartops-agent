@@ -14,6 +14,7 @@ from smartops_agent.agent.tool_registry import TOOL_SCHEMAS
 from smartops_agent.config import load_config
 from smartops_agent.guardrails.approval_queue import ApprovalQueue
 from smartops_agent.guardrails.permissions import check_permission, get_allowed_human_actions
+from smartops_agent.monitoring.metrics import escalations_total, tool_calls_total
 from smartops_agent.tools import (
     CalculateCommissionInput,
     DraftFollowupInput,
@@ -133,6 +134,7 @@ class AgentLoop:
                     result = _call_tool(
                         tool_name, tool_args, role, user_id, self._db_path, self._queue
                     )
+                    tool_calls_total.labels(tool=tool_name, status="ok").inc()
                     self._tracer.tool_call(
                         name=tool_name,
                         args=tool_args,
@@ -145,6 +147,7 @@ class AgentLoop:
                 except ValidationError as ve:
                     # Invalid arguments from LLM — retry once
                     bad_call = True
+                    tool_calls_total.labels(tool=tool_name, status="error").inc()
                     self._tracer.tool_error(name=tool_name, error=str(ve))
                     if invalid_retries_left > 0:
                         invalid_retries_left -= 1
@@ -157,6 +160,7 @@ class AgentLoop:
                         )
                     break
                 except ToolError as te:
+                    tool_calls_total.labels(tool=tool_name, status="error").inc()
                     self._tracer.tool_error(name=tool_name, error=te.code.value)
                     tool_results.append(
                         {
@@ -195,5 +199,6 @@ class AgentLoop:
             "Limite d'itérations atteinte. "
             "La demande est transmise à l'équipe pour traitement manuel."
         )
+        escalations_total.labels(reason="max_iterations").inc()
         self._tracer.finish(answer=escalation_msg, iterations=self._max_iter, escalated=True)
         return escalation_msg
