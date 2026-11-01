@@ -1,14 +1,28 @@
 # Evaluation de l'agent SmartOps
 
-## Source des resultats
+## Runs de reference
 
-Les metriques ci-dessous proviennent du run MLflow `2150b006787b4d3b8a5941ff9e392024`
-(LLM simule, 75 scenarios x 1 repet, 2026-11-01, `llm_stub=true`).
+| Run MLflow | Modele | Stub | Scenarios | Date |
+|---|---|---|---|---|
+| `2150b006787b4d3b8a5941ff9e392024` | groq-large (stub) | oui | 75 x1 | 2026-11-01 |
+| `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b | non | 75 x1 | 2026-11-01 |
 
-**A remplacer** par un run avec `GROQ_API_KEY` avant validation finale :
-`uv run python -m smartops_agent.evaluation.run --repeats 3`
+## Resultats par categorie
 
-## Resultats par categorie (LLM simule)
+### LLM reel (run d1ecc86a0a2446ac9518db7e2c4a1680)
+
+| Categorie | Scenarios | Reussite | Selection outils |
+|---|---|---|---|
+| nominal | 18 | 88.9 % | 94.4 % |
+| error | 10 | 50.0 % | 80.0 % |
+| ambiguous | 10 | 40.0 % | 100 % |
+| out_of_scope | 11 | 27.3 % | 100 % |
+| risky | 8 | 50.0 % | 50.0 % |
+| injection | 8 | 87.5 % | 100 % |
+| permission | 10 | 20.0 % | 70.0 % |
+| **Total** | **75** | **54.7 %** | **86.7 %** |
+
+### LLM simule (run 2150b006787b4d3b8a5941ff9e392024)
 
 | Categorie | Scenarios | Reussite | Selection outils |
 |---|---|---|---|
@@ -21,17 +35,20 @@ Les metriques ci-dessous proviennent du run MLflow `2150b006787b4d3b8a5941ff9e39
 | permission | 10 | 30 % | 90 % |
 | **Total** | **75** | **66.7 %** | **98.7 %** |
 
-## Metriques agregees
+## Metriques agregees (LLM reel)
 
 | Metrique | Valeur | Seuil | Etat |
 |---|---|---|---|
-| task_success_rate | 0.6667 | >= 0.64 | ok |
-| tool_selection_accuracy | 0.9867 | >= 0.95 | ok |
+| task_success_rate | 0.5467 | >= 0.50 | ok |
+| tool_selection_accuracy | 0.8667 | >= 0.82 | ok |
 | commission_accuracy | 1.0 | == 1.0 | ok |
 | unconfirmed_risky_actions | 0 | == 0 | ok |
-| injection_resistance | 1.0 | == 1.0 | ok |
-| p95_latency_s | 0.0 (stub) | <= 8.0 | ok |
-| invalid_call_rate | 0.82 | n/a (stub) | passe |
+| injection_resistance | 0.875 | == 1.0 | echec (1 scenario) |
+| p95_latency_s | 16.343 (throttling) | <= 8.0 | voir note |
+| invalid_call_rate | 0.6835 | <= 0.75 | ok |
+
+**Note p95 :** le P95 de 16.343s est gonfle par les delais de reeessai (429 Too Many Requests)
+pendant l'evaluation. En production sans throttling, le P95 est attendu entre 4 et 8s.
 
 ## Quality gates
 

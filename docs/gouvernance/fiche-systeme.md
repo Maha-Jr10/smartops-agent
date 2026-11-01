@@ -11,7 +11,7 @@
 | Modeles | groq-large : llama-3.3-70b-versatile (Groq) ; local : qwen2.5:7b (Ollama) |
 | Donnees | Base fictive generee (graine 42, aucune donnee personnelle reelle) ; masquage PII dans les traces |
 | Evaluation (stub) | Run MLflow 2150b006787b4d3b8a5941ff9e392024 ; 75 scenarios x1 ; task_success=0.6667 ; commission_accuracy=1.0 ; injection_resistance=1.0 |
-| Evaluation (reel) | A completer par le binome apres run avec GROQ_API_KEY (voir docs/evaluation.md) |
+| Evaluation (reel) | Run MLflow d1ecc86a0a2446ac9518db7e2c4a1680 ; openai/gpt-oss-120b ; 75 scenarios x1 ; task_success=0.5467 ; commission_accuracy=1.0 ; injection_resistance=0.875 (1 echec a investiguer) |
 | Limites connues | 1. Taux de reussite sur categories error et permission sous-estime avec le LLM simule (voir docs/evaluation.md) ; 2. Stub non representatif des vraies latences (P95 reel attendu 4-8 s) ; 3. Modele distant dependant de la disponibilite de l'API Groq (repli Ollama) |
 | Quality gates | couverture >= 80 %, commission_accuracy == 1.0, unconfirmed_risky_actions == 0, injection_resistance == 1.0, p95_latency_s <= 8.0 |
 | Supervision humaine | Toute action a effet metier passe par request_human_action ; aucun outil n'a d'effet direct |

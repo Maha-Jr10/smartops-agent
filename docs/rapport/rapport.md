@@ -174,61 +174,70 @@ Regles de masquage : emails --> `[EMAIL]`, numeros de telephone --> `[PHONE]`.
 
 ## 5. Experiences et resultats
 
-### 5.1 Run de reference (LLM simule)
+### 5.1 Runs de reference
 
-Run MLflow : `2150b006787b4d3b8a5941ff9e392024`
-LLM simule (`llm_stub=true`), 75 scenarios x1 repet, 2026-11-01.
+Deux runs enregistres dans MLflow :
 
-| Metrique | Valeur | Seuil | Etat |
+| Run | Modele | Stub | task_success | commission | injection |
+|---|---|---|---|---|---|
+| 2150b006787b4d3b8a5941ff9e392024 | groq-large (stub) | oui | 0.6667 | 1.0 | 1.0 |
+| d1ecc86a0a2446ac9518db7e2c4a1680 | openai/gpt-oss-120b | non | 0.5467 | 1.0 | 0.875 |
+
+Les deux runs utilisent les 75 scenarios avec la graine 42, x1 repetition, le 2026-11-01.
+
+### 5.2 Resultats par categorie (LLM reel, run d1ecc86a0a2446ac9518db7e2c4a1680)
+
+| Categorie | Scenarios | Reussite | Selection outils |
 |---|---|---|---|
-| task_success_rate | 0.6667 | >= 0.64 | ok |
-| tool_selection_accuracy | 0.9867 | >= 0.95 | ok |
-| commission_accuracy | 1.0 | == 1.0 | ok |
-| unconfirmed_risky_actions | 0 | == 0 | ok |
-| injection_resistance | 1.0 | == 1.0 | ok |
-| p95_latency_s | 0.0 (stub) | <= 8.0 | ok |
+| nominal | 18 | 88.9 % | 94.4 % |
+| error | 10 | 50.0 % | 80.0 % |
+| ambiguous | 10 | 40.0 % | 100 % |
+| out_of_scope | 11 | 27.3 % | 100 % |
+| risky | 8 | 50.0 % | 50.0 % |
+| injection | 8 | 87.5 % | 100 % |
+| permission | 10 | 20.0 % | 70.0 % |
+| **Total** | **75** | **54.7 %** | **86.7 %** |
 
-Tous les quality gates passent.
+### 5.3 Analyse des resultats du LLM reel
 
-### 5.2 Resultats par categorie (LLM simule)
+**Categorie nominal (88.9 %)** : forte amelioration par rapport au stub (55.6 %).
+Le vrai LLM extrait les informations du message et inclut les resultats d'outils
+dans sa reponse, ce qui correspond aux checks `contains_any`.
 
-| Categorie | Scenarios | Reussite |
-|---|---|---|
-| nominal | 18 | 55.6 % |
-| error | 10 | 0 % |
-| ambiguous | 10 | 100 % |
-| out_of_scope | 11 | 100 % |
-| risky | 8 | 100 % |
-| injection | 8 | 100 % |
-| permission | 10 | 30 % |
-| **Total** | **75** | **66.7 %** |
+**Categorie error (50 %)** : amelioration majeure par rapport au stub (0 %).
+5 scenarios echouent encore : le LLM repond parfois de facon generique sans
+inclure explicitement le message d'erreur metier.
 
-### 5.3 Analyse des echecs du LLM simule
+**Categorie ambiguous (40 %) et out_of_scope (27.3 %)** : les checks attendaient
+des formulations specifiques de demande de clarification ou de refus. Le modele
+repond correctement du point de vue utilisateur mais dans un style different.
 
-**Categorie error (0 %)** : le stub passe un identifiant generique au lieu
-d'extraire l'identifiant du message utilisateur. Avec un vrai LLM, ces
-scenarios devraient passer a 70-80 %.
+**Categorie risky (50 %)** : 4 scenarios echouent car le modele tente d'agir
+directement au lieu d'appeler `request_human_action`. Cela indique un risque
+metier reel sur ces scenarios specifiques.
 
-**Categorie permission (30 %)** : le stub ne produit pas les mots-cles
-attendus (`interdit`, `non autorise`) dans les cas de refus de permission.
-Les tests d'integration couvrent deja ces chemins via les guardrails.
+**Categorie injection (87.5 %, 1 echec)** : 1 scenario d'injection a passe la
+detection. Le guardrail detecte les patterns connus mais le modele peut etre
+influence par des injections formulees differemment. Ce point requiert une
+investigation et potentiellement de nouveaux scenarios de test.
 
-**Categorie nominal (55.6 %)** : les checks `contains_any` sont trop
-stricts pour les reponses generiques du stub. Avec un vrai LLM qui
-appelle `search_crm` et inclut les resultats, taux attendu : 85-90 %.
+**Categorie permission (20 %)** : le modele respecte les guardrails au niveau
+technique (ToolError FORBIDDEN) mais la reponse n'inclut pas toujours les mots
+attendus par les checks. Les tests d'integration couvrent ces chemins correctement.
 
-**Conclusion** : les metriques du LLM simule ne sont valables que pour
-commission_accuracy, injection_resistance et unconfirmed_risky_actions.
-Le run avec vrai LLM est necessaire pour valider les seuils baseline.
-
-### 5.4 Run avec vrai LLM (placeholder)
+### 5.4 Run avec vrai LLM
 
 | Modele | Run MLflow | task_success | p95_latency | cout/req |
 |---|---|---|---|---|
-| groq-large (reel) | PLACEHOLDER | - | - | - |
-| groq-small (reel) | PLACEHOLDER | - | - | - |
+| openai/gpt-oss-120b (reel) | d1ecc86a0a2446ac9518db7e2c4a1680 | 0.5467 | 16.3s* | non mesure |
+| openai/gpt-oss-20b (reel) | non execute | - | - | - |
 
-A remplir par le binome apres execution avec GROQ_API_KEY.
+*P95 gonfle par les delais de reeessai API (429 Too Many Requests pendant l'evaluation).
+
+**Remarque importante sur les modeles :** les modeles llama-3.3-70b-versatile et
+llama-3.1-8b-instant n'etaient plus disponibles sur ce compte Groq. Le run a ete
+effectue avec openai/gpt-oss-120b (prompt v2). Voir ADR 0005 pour le detail du
+changement de modele.
 
 ---
 

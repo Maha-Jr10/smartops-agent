@@ -22,9 +22,7 @@ reproduit exactement le run de reference (LLM simule, graine fixe).
 | Tag | Run MLflow | Modele | Prompt | Scenarios | task_success | commission_accuracy |
 |---|---|---|---|---|---|---|
 | v1.0.0 | `2150b006787b4d3b8a5941ff9e392024` | groq-large (stub) | v1 | 75 x1 | 0.6667 | 1.0 |
-| v1.0.0 | PLACEHOLDER | groq-large (reel) | v1 | 75 x3 | - | - |
-
-Le run `PLACEHOLDER` sera rempli par le binome apres execution avec `GROQ_API_KEY`.
+| v1.0.0 | `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.5467 | 1.0 |
 
 ## Graine des donnees
 
