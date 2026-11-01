@@ -136,7 +136,6 @@ provisoires jusqu'au premier run avec GROQ_API_KEY.
 | Renseigner les runs reels dans `docs/reproductibilite.md` | Remplacer les PLACEHOLDER |
 | Enregistrer la video 2 minutes | `docs/demo-script.md` donne le script exact |
 | Creer le tag v1.0.0 et pousser | `CHANGELOG.md` donne la commande exacte |
-| Renseigner les noms dans `docs/rapport/rapport.md` | Ligne "Binome : (noms a renseigner)" |
 
 ## Ce qui manque ou reste provisoire
 

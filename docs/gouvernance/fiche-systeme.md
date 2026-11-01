@@ -4,7 +4,7 @@
 |---|---|
 | Nom et version | SmartOps Agent v1.0.0 |
 | Date | 2026-11-01 |
-| Auteurs | Binome ISDIA3 ENSAF |
+| Auteurs | JOHN Muhammed & Allah N'diguim Japhet, ISDIA3 ENSAF |
 | Usage prevu | Assistance interne : recherche CRM, statut de facture, calcul de commission, brouillons de relance |
 | Hors usage | Envoi de messages, modification de donnees, conseil juridique ou financier, usage par des clients externes |
 | Utilisateurs | Membres de l'equipe (roles commercial, delivery, admin) ; acces local uniquement |

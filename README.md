@@ -104,6 +104,33 @@ docs/           cadrage, plan, spécifications, ADR, gouvernance, cahier des cha
 - [Dossier de reproductibilité](docs/reproductibilite.md)
 - [Script de démo (2 min)](docs/demo-script.md)
 
+## Comprendre la repartition
+
+Le projet est entierement fonctionnel. Voici les fichiers cles de chaque partie.
+
+**JOHN Muhammed** -- boucle agent, API, deploiement :
+
+- [src/smartops_agent/agent/loop.py](src/smartops_agent/agent/loop.py) -- boucle LLM, garde-fous, max 6 iterations
+- [src/smartops_agent/api/app.py](src/smartops_agent/api/app.py) -- API FastAPI, routes `/chat` `/approvals` `/metrics`
+- [src/smartops_agent/tools/](src/smartops_agent/tools/) -- 5 outils (search_crm, get_invoice_status, calculate_commission, draft_followup, request_human_action)
+- [src/smartops_agent/guardrails/](src/smartops_agent/guardrails/) -- permissions par role, detection d'injection
+- [src/smartops_agent/tracing/tracer.py](src/smartops_agent/tracing/tracer.py) -- traces JSONL avec masquage PII
+- [src/smartops_agent/monitoring/metrics.py](src/smartops_agent/monitoring/metrics.py) -- 10 metriques Prometheus
+- [docker-compose.yml](docker-compose.yml), [docker-compose.shadow.yml](docker-compose.shadow.yml), [docker-compose.canary.yml](docker-compose.canary.yml) -- deploiement shadow/canary
+
+**Allah N'diguim Japhet** -- donnees, evaluation, observabilite :
+
+- [data/seed/seed.py](data/seed/seed.py) -- generation de la base fictive (graine 42, 40 clients, 30 factures)
+- [data/scenarios/](data/scenarios/) -- 75 scenarios JSONL en 7 categories
+- [src/smartops_agent/evaluation/run.py](src/smartops_agent/evaluation/run.py) -- harnais d'evaluation (stub ou vrai LLM)
+- [src/smartops_agent/evaluation/mlflow_client.py](src/smartops_agent/evaluation/mlflow_client.py) -- suivi MLflow des experiences
+- [configs/gates.yaml](configs/gates.yaml) -- quality gates avec seuils justifies
+- [monitoring/grafana/dashboards/smartops.json](monitoring/grafana/dashboards/smartops.json) -- tableau de bord (10 panneaux P50/P95/P99)
+- [src/smartops_agent/monitoring/report.py](src/smartops_agent/monitoring/report.py) -- rapport de derive Evidently
+- [tests/load/locustfile.py](tests/load/locustfile.py) -- test de charge Locust
+
+**Ensemble :** [docs/gouvernance/](docs/gouvernance/), [docs/rapport/rapport.md](docs/rapport/rapport.md), [docs/adr/](docs/adr/), [CHANGELOG.md](CHANGELOG.md)
+
 ## Avancement
 
 - [x] Phase 0 : mise en place du projet
