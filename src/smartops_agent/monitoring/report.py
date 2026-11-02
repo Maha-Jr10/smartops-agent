@@ -16,18 +16,12 @@ from pathlib import Path
 from typing import Any
 
 # pandas 3.x removed infer_dtype_from_object; patch it back for evidently legacy
-import numpy as _np
 import pandas.core.dtypes.common as _pd_common
 
 if not hasattr(_pd_common, "infer_dtype_from_object"):
 
     def _infer_dtype_from_object(dtype: object) -> type:
-        try:
-            np_dtype = _np.dtype(dtype)  # type: ignore[call-overload]
-            result: type = np_dtype.type
-            return result
-        except Exception:
-            return type(dtype)
+        return dtype if isinstance(dtype, type) else object
 
     _pd_common.infer_dtype_from_object = _infer_dtype_from_object
 

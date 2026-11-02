@@ -67,6 +67,7 @@ _daily_window_start: float = time.time()
 
 # In-memory conversation history per session_id (system-prompt messages excluded)
 _MAX_HISTORY_TURNS = 20
+_MAX_SESSIONS = 1000  # evict oldest when full to bound memory
 _session_history: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
 
@@ -166,6 +167,8 @@ def create_app(
                 history=prior_history,
             )
             if session_key:
+                if len(_session_history) >= _MAX_SESSIONS and session_key not in _session_history:
+                    _session_history.pop(next(iter(_session_history)))
                 _session_history[session_key] = new_history[-_MAX_HISTORY_TURNS * 2 :]
             chat_requests_total.labels(role=role_label, status="ok").inc()
             return ChatResponse(answer=answer, trace_id=tracer._data.get("trace_id", ""))
