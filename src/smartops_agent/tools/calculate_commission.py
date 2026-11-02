@@ -68,7 +68,8 @@ def calculate_commission(
     costs: float = proj_row["direct_costs"]
     currency: str = proj_row["currency"]
     apporteur_id: str | None = proj_row["apporteur_id"]
-    realisation_ids: list[str] = [r for r in proj_row["realisation_ids"].split(",") if r]
+    raw_ids: str = proj_row["realisation_ids"] or ""
+    realisation_ids: list[str] = [r for r in raw_ids.split(",") if r]
 
     base = total - costs
     if base <= 0:

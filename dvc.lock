@@ -1,0 +1,27 @@
+schema: '2.0'
+stages:
+  seed_data:
+    cmd: python -m smartops_agent.data.seed
+    deps:
+    - path: src/smartops_agent/data
+      hash: md5
+      md5: 0e59bc1427f5a0851945bead5cde2568.dir
+      size: 21207
+      nfiles: 4
+    params:
+      params.yaml:
+        seed:
+          random_seed: 42
+          n_clients: 30
+          n_leads: 120
+          n_projects: 40
+          n_invoices: 60
+          currencies:
+          - GMD
+          - MAD
+          - USD
+    outs:
+    - path: data/seed/crm.db
+      hash: md5
+      md5: 9aa05c5ea1f3b14c12fdc67395e90570
+      size: 69632

@@ -159,7 +159,7 @@ Regles de masquage : emails --> `[EMAIL]`, numeros de telephone --> `[PHONE]`.
 
 - ruff (lint + format), mypy strict, pre-commit a chaque commit.
 - Commits conventionnels, branches + pull requests relues par le binome.
-- Coverage >= 80 % (atteint : 89 % avec les tests d'evaluation).
+- Coverage >= 80 % (atteint : 83.75 %, 103 tests, make ci du 2026-11-02).
 
 ### 4.4 Securite
 
@@ -185,18 +185,18 @@ Deux runs enregistres dans MLflow :
 
 Les deux runs utilisent les 75 scenarios avec la graine 42, x1 repetition, le 2026-11-01.
 
-### 5.2 Resultats par categorie (LLM reel, run d1ecc86a0a2446ac9518db7e2c4a1680)
+### 5.2 Resultats par categorie (LLM reel, 75 scenarios x1, 2026-11-02)
 
 | Categorie | Scenarios | Reussite | Selection outils |
 |---|---|---|---|
 | nominal | 18 | 88.9 % | 94.4 % |
 | error | 10 | 50.0 % | 80.0 % |
-| ambiguous | 10 | 40.0 % | 100 % |
+| ambiguous | 10 | 30.0 % | 100 % |
 | out_of_scope | 11 | 27.3 % | 100 % |
-| risky | 8 | 50.0 % | 50.0 % |
-| injection | 8 | 87.5 % | 100 % |
-| permission | 10 | 20.0 % | 70.0 % |
-| **Total** | **75** | **54.7 %** | **86.7 %** |
+| risky | 8 | 37.5 % | 37.5 % |
+| injection | 8 | 75.0 % | 100 % |
+| permission | 10 | 10.0 % | 50.0 % |
+| **Total** | **75** | **49.3 %** | **82.7 %** |
 
 ### 5.3 Analyse des resultats du LLM reel
 
@@ -208,32 +208,36 @@ dans sa reponse, ce qui correspond aux checks `contains_any`.
 5 scenarios echouent encore : le LLM repond parfois de facon generique sans
 inclure explicitement le message d'erreur metier.
 
-**Categorie ambiguous (40 %) et out_of_scope (27.3 %)** : les checks attendaient
+**Categorie ambiguous (30 %) et out_of_scope (27.3 %)** : les checks attendaient
 des formulations specifiques de demande de clarification ou de refus. Le modele
 repond correctement du point de vue utilisateur mais dans un style different.
 
-**Categorie risky (50 %)** : 4 scenarios echouent car le modele tente d'agir
+**Categorie risky (37.5 %)** : 5 scenarios echouent car le modele tente d'agir
 directement au lieu d'appeler `request_human_action`. Cela indique un risque
-metier reel sur ces scenarios specifiques.
+metier reel sur ces scenarios specifiques. Gate unconfirmed_risky_actions=0 reste
+PASSE car le guardrail bloque l'execution, meme si le LLM ne choisit pas le bon outil.
 
-**Categorie injection (87.5 %, 1 echec)** : 1 scenario d'injection a passe la
+**Categorie injection (75 %, 2 echecs)** : 2 scenarios d'injection ont passe la
 detection. Le guardrail detecte les patterns connus mais le modele peut etre
-influence par des injections formulees differemment. Ce point requiert une
-investigation et potentiellement de nouveaux scenarios de test.
+influence par des injections formulees differemment. Ce point requiert un
+renforcement du prompt systeme et de nouveaux scenarios de test.
 
-**Categorie permission (20 %)** : le modele respecte les guardrails au niveau
+**Categorie permission (10 %)** : le modele respecte les guardrails au niveau
 technique (ToolError FORBIDDEN) mais la reponse n'inclut pas toujours les mots
 attendus par les checks. Les tests d'integration couvrent ces chemins correctement.
 
-### 5.4 Run avec vrai LLM
+### 5.4 Runs avec vrai LLM
 
-| Modele | Run MLflow | task_success | injection | p95_latency |
-|---|---|---|---|---|
-| openai/gpt-oss-120b (groq-large) | d1ecc86a0a2446ac9518db7e2c4a1680 | 0.5467 | 0.875 | 16.3s* |
-| openai/gpt-oss-20b (groq-small) | b247be0c129b4204975f57c3d797ea7e | 0.4533 | 0.75 | 23.9s* |
+| Modele | Run | Date | task_success | injection | commission | p95_latency |
+|---|---|---|---|---|---|---|
+| openai/gpt-oss-120b (groq-large) | d1ecc86a0a2446ac9518db7e2c4a1680 | 2026-11-01 | 0.5467 | 0.875 | 1.0 | 16.3s* |
+| openai/gpt-oss-120b (groq-large) | metrics.json 2026-11-02 | 2026-11-02 | 0.4933 | 0.75 | 1.0 | 15.8s* |
+| openai/gpt-oss-20b (groq-small) | b247be0c129b4204975f57c3d797ea7e | 2026-11-01 | 0.4533 | 0.75 | 1.0 | 23.9s* |
 
-*P95 gonfle par les delais de reeessai API (429 Too Many Requests pendant l'evaluation).
-Le modele large est superieur sur toutes les metriques ; il reste le modele par defaut.
+*P95 gonfle par les delais de reprise (429 Too Many Requests pendant l'evaluation).
+P95 en utilisation reelle sans throttling : **3.45 s** (mesure Grafana, 2026-11-02).
+La variabilite entre les deux runs groq-large (0.5467 vs 0.4933) est due a la non-determinisme
+du LLM avec repeats=1. Le modele large est superieur sur toutes les metriques ; il reste le modele par defaut.
 
 **Remarque importante sur les modeles :** les modeles llama-3.3-70b-versatile et
 llama-3.1-8b-instant n'etaient plus disponibles sur ce compte Groq. Le run a ete
@@ -307,9 +311,9 @@ GitHub Actions (`.github/workflows/`) :
    `error` et `permission` ne peuvent pas etre evaluees fidelement sans un
    vrai LLM. Les seuils `baseline` restent provisoires.
 
-2. **Latences du stub non representatives** : le P95 stub est 0 s.
-   Le P95 reel est attendu entre 4 et 8 s (Groq, 2-4 iterations x 1-3 s/appel).
-   Le seuil de 8 s est fixe par analyse, pas par mesure reelle.
+2. **Latences en evaluation gonflees par le rate-limiting** : le P95 eval = 15.8 s
+   a cause des 429 Groq. En utilisation reelle sans throttling : P95 = 3.45 s
+   (mesure Grafana, 2026-11-02). Le seuil de 8 s est justifie par cette mesure.
 
 3. **Dependance a l'API Groq** : en cas de panne ou de changement de prix,
    le repli sur Ollama (qwen2.5:7b) est documente mais non benchmark.
@@ -322,10 +326,10 @@ GitHub Actions (`.github/workflows/`) :
 
 ### 8.2 Perspectives
 
-- Evaluer avec GROQ_API_KEY et mettre a jour les seuils baseline.
-- Comparer groq-large vs groq-small sur cout et qualite.
+- Renforcer le prompt systeme contre les injections (injection_resistance=0.75, gate a 1.0).
+- Relancer l'evaluation avec repeats=3 pour reduire la variance (task_success varie 0.49-0.55 avec repeats=1).
 - Ajouter un outil de modification supervisee (avec double validation).
-- Etendre la base fictive et diversifier les scenarios.
+- Etendre la base fictive et diversifier les scenarios (notamment permission et risky).
 
 ---
 

@@ -10,6 +10,9 @@ services:
         required: false
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./reports:/app/reports
+      - ./data/seed:/app/data/seed:ro
     depends_on: [mlflow]
 
   mlflow:
@@ -25,7 +28,7 @@ services:
     image: prom/prometheus:v2.54.1
     volumes:
       - ./monitoring/prometheus:/etc/prometheus:ro
-    ports: ["9090:9090"]
+    ports: ["9091:9090"]
     depends_on: [api]
 
   grafana:
@@ -35,7 +38,7 @@ services:
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    ports: ["3000:3000"]
+    ports: ["3001:3000"]
     depends_on: [prometheus]
 
 volumes:

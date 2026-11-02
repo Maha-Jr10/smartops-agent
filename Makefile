@@ -3,7 +3,7 @@
 .RECIPEPREFIX = >
 .DEFAULT_GOAL := help
 .PHONY: help setup lint format typecheck test test-unit test-integration test-e2e coverage \
-        security ci seed eval gates repro serve mlflow-ui monitor load-test \
+        security ci seed eval gates repro serve serve-ui mlflow-ui monitor load-test \
         docker-build docker-up docker-down tf-init tf-plan tf-apply tf-destroy clean
 
 UV := uv run
@@ -62,6 +62,9 @@ repro: ## Rejoue tout le pipeline DVC
 
 serve: ## Lance l'API en local
 > $(UV) uvicorn smartops_agent.api.app:app --reload --port 8000
+
+serve-ui: ## Lance le frontend Next.js (port 3001)
+> cd frontend && npm run dev
 
 mlflow-ui: ## Ouvre l'interface MLflow
 > $(UV) mlflow ui --backend-store-uri ./mlruns --port 5000

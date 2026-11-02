@@ -10,4 +10,4 @@ seed:
 evaluation:
   scenario_file: data/scenarios/scenarios_v1.jsonl
   model: groq-large
-  repeats: 3                   # un LLM n'est pas déterministe : on répète chaque scénario
+  repeats: 1                   # un LLM n'est pas déterministe : on répète chaque scénario

@@ -8,13 +8,13 @@ stages:
     params:
       - seed
     outs:
-      - data/seed/crm.sqlite
+      - data/seed/crm.db
 
   evaluate:
     cmd: python -m smartops_agent.evaluation.run
     deps:
       - src/smartops_agent
-      - data/seed/crm.sqlite
+      - data/seed/crm.db
       - data/scenarios
       - configs
     params:

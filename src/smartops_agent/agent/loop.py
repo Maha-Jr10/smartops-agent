@@ -93,12 +93,28 @@ class AgentLoop:
         agent_cfg = load_config("agent").get("agent", {})
         self._temperature: float = agent_cfg.get("temperature", 0.0)
 
-    def run(self, user_message: str, role: str, user_id: str) -> str:
-        """Exécute la boucle pour un message utilisateur et retourne la réponse finale."""
-        messages: list[dict[str, Any]] = [
-            {"role": "system", "content": self._system},
-            {"role": "user", "content": user_message},
-        ]
+    def run(
+        self,
+        user_message: str,
+        role: str,
+        user_id: str,
+        history: list[dict[str, Any]] | None = None,
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """Exécute la boucle pour un message utilisateur.
+
+        Returns (answer, updated_history) so callers can persist multi-turn context.
+        """
+        if history:
+            messages: list[dict[str, Any]] = [
+                {"role": "system", "content": self._system},
+                *history,
+                {"role": "user", "content": user_message},
+            ]
+        else:
+            messages = [
+                {"role": "system", "content": self._system},
+                {"role": "user", "content": user_message},
+            ]
 
         self._tracer.start(user_message=user_message, role=role, user_id=user_id)
         invalid_retries_left = self._retries
@@ -114,7 +130,7 @@ class AgentLoop:
                 )
             except Exception as exc:
                 self._tracer.llm_error(str(exc))
-                return f"Erreur de communication avec le modèle : {exc}"
+                return f"Erreur de communication avec le modèle : {exc}", []
 
             llm_latency = time.monotonic() - t0
             self._tracer.llm_step(iteration=iteration, latency=llm_latency)
@@ -122,7 +138,9 @@ class AgentLoop:
             if not response.has_tool_calls:
                 answer = response.content or ""
                 self._tracer.finish(answer=answer, iterations=iteration + 1)
-                return answer
+                # Return history without the system prompt for storage
+                user_and_assistant = [m for m in messages if m["role"] != "system"]
+                return answer, user_and_assistant
 
             # Validate + execute all tool calls
             tool_results: list[dict[str, Any]] = []
@@ -205,4 +223,5 @@ class AgentLoop:
         )
         escalations_total.labels(reason="max_iterations").inc()
         self._tracer.finish(answer=escalation_msg, iterations=self._max_iter, escalated=True)
-        return escalation_msg
+        user_and_assistant = [m for m in messages if m["role"] != "system"]
+        return escalation_msg, user_and_assistant

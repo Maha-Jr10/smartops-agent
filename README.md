@@ -56,7 +56,7 @@ curl -s -X POST http://localhost:8000/chat \
   | python -m json.tool
 ```
 
-**Voir les résultats d'évaluation :** `docs/evaluation.md` et `reports/eval/metrics.json`.
+**Voir les résultats d'évaluation :** `reports/eval/metrics.json` (task_success=0.4933, commission_accuracy=1.0, p95_latency=3.45s production).
 **Relancer l'évaluation :** `uv run python -m smartops_agent.evaluation.run --stub --repeats 1`
 
 `make help` liste toutes les commandes disponibles.
@@ -120,7 +120,7 @@ Le projet est entierement fonctionnel. Voici les fichiers cles de chaque partie.
 
 **Allah N'diguim Japhet** -- donnees, evaluation, observabilite :
 
-- [data/seed/seed.py](data/seed/seed.py) -- generation de la base fictive (graine 42, 40 clients, 30 factures)
+- [src/smartops_agent/data/seed.py](src/smartops_agent/data/seed.py) -- generation de la base fictive (graine 42, 30 clients, 40 projets, 60 factures)
 - [data/scenarios/](data/scenarios/) -- 75 scenarios JSONL en 7 categories
 - [src/smartops_agent/evaluation/run.py](src/smartops_agent/evaluation/run.py) -- harnais d'evaluation (stub ou vrai LLM)
 - [src/smartops_agent/evaluation/mlflow_client.py](src/smartops_agent/evaluation/mlflow_client.py) -- suivi MLflow des experiences

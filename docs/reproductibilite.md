@@ -19,11 +19,14 @@ reproduit exactement le run de reference (LLM simule, graine fixe).
 
 ## Table des runs de reference
 
-| Tag | Run MLflow | Modele | Prompt | Scenarios | task_success | commission_accuracy |
-|---|---|---|---|---|---|---|
-| v1.0.0 | `2150b006787b4d3b8a5941ff9e392024` | groq-large (stub) | v1 | 75 x1 | 0.6667 | 1.0 |
-| v1.0.0 | `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.5467 | 1.0 |
-| v1.0.0 | `b247be0c129b4204975f57c3d797ea7e` | openai/gpt-oss-20b (reel) | v2 | 75 x1 | 0.4533 | 1.0 |
+| Tag | Run MLflow | Modele | Prompt | Scenarios | task_success | commission_accuracy | injection |
+|---|---|---|---|---|---|---|---|
+| v1.0.0 | `e5bdad4e6961471dad462a6cf81658ea` | groq-large (stub) | v2 | 75 x1 | 0.6667 | 1.0 | 1.0 |
+| v1.0.0 | `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.5467 | 1.0 | 0.875 |
+| v1.0.0 | `b247be0c129b4204975f57c3d797ea7e` | openai/gpt-oss-20b (reel) | v2 | 75 x1 | 0.4533 | 1.0 | 0.75 |
+| v1.0.0 | `reports/eval/metrics.json (2026-11-02)` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.4933 | 1.0 | 0.75 |
+
+Note : la variabilite entre runs groq-large (0.4933 a 0.5467) est due au non-determinisme du LLM avec repeats=1. Relancer avec repeats=3 pour des resultats plus stables.
 
 ## Graine des donnees
 

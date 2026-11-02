@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 from pydantic import BaseModel
 
@@ -43,6 +44,7 @@ class ChatRequest(BaseModel):
     message: str
     role: str = "commercial"
     user_id: str = "anonymous"
+    session_id: str = ""
 
 
 class ChatResponse(BaseModel):
@@ -62,6 +64,10 @@ class ApprovalDecision(BaseModel):
 _rate_windows: dict[str, list[float]] = defaultdict(list)
 _daily_llm_count: dict[str, int] = defaultdict(int)
 _daily_window_start: float = time.time()
+
+# In-memory conversation history per session_id (system-prompt messages excluded)
+_MAX_HISTORY_TURNS = 20
+_session_history: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
 
 def _check_rate_limit(client_ip: str, limit_per_minute: int) -> None:
@@ -129,6 +135,13 @@ def create_app(
 
     app = FastAPI(title="SmartOps Agent", version=__version__)
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3001"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": __version__, "env": settings.app_env}
@@ -142,12 +155,18 @@ def create_app(
         role_label = _safe_role_label(req.role)
         t0 = time.monotonic()
         try:
+            # Key on (user_id, session_id) so a user cannot access another user's history
+            session_key = (req.user_id, req.session_id) if req.session_id else None
+            prior_history = _session_history.get(session_key, []) if session_key else []
             agent, tracer = _make_agent()
-            answer = agent.run(
+            answer, new_history = agent.run(
                 user_message=req.message,
                 role=req.role,
                 user_id=req.user_id,
+                history=prior_history,
             )
+            if session_key:
+                _session_history[session_key] = new_history[-_MAX_HISTORY_TURNS * 2 :]
             chat_requests_total.labels(role=role_label, status="ok").inc()
             return ChatResponse(answer=answer, trace_id=tracer._data.get("trace_id", ""))
         except Exception as exc:

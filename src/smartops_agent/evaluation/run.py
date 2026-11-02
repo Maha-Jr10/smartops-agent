@@ -6,7 +6,7 @@ Usage (via DVC):
 Usage (standalone):
     uv run python -m smartops_agent.evaluation.run \
         --scenarios data/scenarios/scenarios_v1.jsonl \
-        --db data/seed/crm.sqlite \
+        --db data/seed/crm.db \
         --model groq-large \
         --repeats 1
 """
@@ -154,7 +154,7 @@ class _ToolTrackingWrapper:
 
         loop_mod._call_tool = _tracked
         try:
-            result = self._loop.run(user_message=user_message, role=role, user_id=user_id)
+            result, _ = self._loop.run(user_message=user_message, role=role, user_id=user_id)
         finally:
             loop_mod._call_tool = original_call_tool
             self.tools_called = tools
@@ -168,6 +168,7 @@ def run_evaluation(
     repeats: int,
     mlflow_run_name: str | None = None,
     force_stub: bool = False,
+    max_scenarios: int | None = None,
 ) -> dict[str, Any]:
     settings = get_settings()
     models_cfg_path = PROJECT_ROOT / "configs" / "models.yaml"
@@ -178,6 +179,8 @@ def run_evaluation(
     model_id = model_entry.get("model_id", model_key)
 
     scenarios = _load_scenarios(scenarios_path)
+    if max_scenarios and max_scenarios < len(scenarios):
+        scenarios = scenarios[:max_scenarios]
     scenario_hash = _scenario_file_hash(scenarios_path)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -342,13 +345,14 @@ def run_evaluation(
             "per_category": per_category,
         }
 
+        METRICS_FILE.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8")
+
         if use_mlflow:
             flat: dict[str, float] = {
                 k: float(v) for k, v in metrics.items() if isinstance(v, int | float)
             }
             mlflow.log_metrics(flat)
-
-        METRICS_FILE.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8")
+            mlflow.log_artifact(str(METRICS_FILE), artifact_path="eval")
         with RESULTS_FILE.open("w", encoding="utf-8") as fh:
             for r in results:
                 fh.write(json.dumps(r, ensure_ascii=False) + "\n")
@@ -457,11 +461,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--db",
         type=Path,
-        default=PROJECT_ROOT / "data" / "seed" / "crm.sqlite",
+        default=PROJECT_ROOT / "data" / "seed" / "crm.db",
     )
     parser.add_argument("--model", default="groq-large")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--run-name", default=None)
+    parser.add_argument("--max-scenarios", type=int, default=None)
     parser.add_argument(
         "--stub",
         action="store_true",
@@ -480,5 +485,6 @@ if __name__ == "__main__":
         repeats=args.repeats,
         mlflow_run_name=args.run_name,
         force_stub=args.stub,
+        max_scenarios=args.max_scenarios,
     )
     print(json.dumps(metrics, indent=2, ensure_ascii=False))
