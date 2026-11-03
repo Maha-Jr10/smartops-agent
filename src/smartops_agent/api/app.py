@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 from prometheus_client import make_asgi_app
 from pydantic import BaseModel
 
@@ -138,7 +139,7 @@ def create_app(
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3001"],
+        allow_origins=["http://localhost:3001", "http://localhost:3000"],
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
@@ -195,6 +196,20 @@ def create_app(
         if not ok:
             raise HTTPException(status_code=404, detail="Demande introuvable.")
         return {"request_id": request_id, "status": body.decision}
+
+    _drift_report_path = Path("reports/monitoring/drift_report.html")
+
+    @app.get("/report/drift", response_model=None)
+    def drift_report() -> FileResponse | HTMLResponse:
+        if not _drift_report_path.exists():
+            return HTMLResponse(
+                "<html><body style='font-family:sans-serif;padding:40px'>"
+                "<h2>Rapport non disponible</h2>"
+                "<p>Lancez <code>make monitor</code> pour générer le rapport Evidently.</p>"
+                "</body></html>",
+                status_code=200,
+            )
+        return FileResponse(str(_drift_report_path), media_type="text/html")
 
     app.mount("/metrics", make_asgi_app())
     return app

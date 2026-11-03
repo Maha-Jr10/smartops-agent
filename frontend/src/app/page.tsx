@@ -1,0 +1,284 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { fetchHealth, type HealthStatus } from "@/lib/api";
+import ChatPanel from "@/components/ChatPanel";
+import ApprovalsPanel from "@/components/ApprovalsPanel";
+import MonitoringPanel from "@/components/MonitoringPanel";
+
+type Tab = "chat" | "approvals" | "monitoring";
+
+export default function Home() {
+  const [tab, setTab] = useState<Tab>("chat");
+  const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [apiDown, setApiDown] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        setHealth(await fetchHealth());
+        setApiDown(false);
+      } catch {
+        setApiDown(true);
+      }
+    };
+    check();
+    const id = setInterval(check, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="app-shell">
+      {/* ── Header ───────────────────────────────────────────── */}
+      <header className="app-header">
+        <div className="header-brand">
+          <span className="brand-logo">SO</span>
+          <div>
+            <p className="brand-name">SmartOps</p>
+            <p className="brand-sub">Assistant Smartara</p>
+          </div>
+        </div>
+
+        {/* Desktop nav */}
+        <nav className="header-nav desktop-only">
+          <button
+            onClick={() => setTab("chat")}
+            className={`nav-item ${tab === "chat" ? "nav-active" : ""}`}
+          >
+            <IconChat />
+            Conversation
+          </button>
+          <button
+            onClick={() => setTab("approvals")}
+            className={`nav-item ${tab === "approvals" ? "nav-active" : ""}`}
+          >
+            <IconApproval />
+            Approbations
+          </button>
+          <button
+            onClick={() => setTab("monitoring")}
+            className={`nav-item ${tab === "monitoring" ? "nav-active" : ""}`}
+          >
+            <IconMonitoring />
+            Monitoring
+          </button>
+        </nav>
+
+        <div className="header-status">
+          <span className={`status-dot ${apiDown ? "dot-down" : "dot-up"}`} />
+          <span className="status-label">
+            {apiDown ? "Hors ligne" : health ? `v${health.version}` : "…"}
+          </span>
+          {health && !apiDown && (
+            <span className="status-env">{health.env}</span>
+          )}
+        </div>
+      </header>
+
+      {/* ── Body ─────────────────────────────────────────────── */}
+      <main className="app-body">
+        {tab === "chat" ? <ChatPanel /> : tab === "approvals" ? <ApprovalsPanel /> : <MonitoringPanel />}
+      </main>
+
+      {/* ── Mobile bottom nav ────────────────────────────────── */}
+      <nav className="mobile-nav mobile-only">
+        <button
+          onClick={() => setTab("chat")}
+          className={`mobile-tab ${tab === "chat" ? "mobile-tab-active" : ""}`}
+        >
+          <IconChat />
+          <span>Chat</span>
+        </button>
+        <button
+          onClick={() => setTab("approvals")}
+          className={`mobile-tab ${tab === "approvals" ? "mobile-tab-active" : ""}`}
+        >
+          <IconApproval />
+          <span>Approbations</span>
+        </button>
+        <button
+          onClick={() => setTab("monitoring")}
+          className={`mobile-tab ${tab === "monitoring" ? "mobile-tab-active" : ""}`}
+        >
+          <IconMonitoring />
+          <span>Monitoring</span>
+        </button>
+      </nav>
+
+      <style>{`
+        /* ── Layout ──────────────────────────────────── */
+        .app-shell {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          background: var(--bg-page);
+        }
+        .app-header {
+          display: flex;
+          align-items: center;
+          gap: 24px;
+          height: 56px;
+          padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+          background: var(--bg-surface);
+          border-bottom: 1px solid var(--border);
+          position: sticky;
+          top: env(safe-area-inset-top, 0px);
+          z-index: 20;
+          flex-shrink: 0;
+        }
+        .app-body {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        /* ── Brand ───────────────────────────────────── */
+        .header-brand {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+        .brand-logo {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: var(--accent);
+          color: #fff;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .brand-name {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--fg-primary);
+          line-height: 1.2;
+        }
+        .brand-sub {
+          font-size: 11px;
+          color: var(--fg-muted);
+          line-height: 1.2;
+        }
+
+        /* ── Header nav (desktop) ────────────────────── */
+        .header-nav {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          flex: 1;
+        }
+        .nav-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 7px;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--fg-secondary);
+          background: none;
+          border: none;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+        .nav-item:hover { background: var(--bg-hover); color: var(--fg-primary); }
+        .nav-active {
+          background: var(--accent-subtle) !important;
+          color: var(--accent) !important;
+        }
+
+        /* ── Status ──────────────────────────────────── */
+        .header-status {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+          margin-left: auto;
+        }
+        .status-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .dot-up { background: #10b981; }
+        .dot-down { background: #ef4444; }
+        .status-label {
+          font-size: 12px;
+          color: var(--fg-secondary);
+          font-variant-numeric: tabular-nums;
+        }
+        .status-env {
+          font-size: 11px;
+          color: var(--fg-muted);
+          background: var(--bg-hover);
+          padding: 2px 7px;
+          border-radius: 4px;
+        }
+
+        /* ── Mobile nav ──────────────────────────────── */
+        .mobile-nav {
+          display: flex;
+          border-top: 1px solid var(--border);
+          background: var(--bg-surface);
+          flex-shrink: 0;
+          padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+        }
+        .mobile-tab {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+          padding: 10px 0;
+          font-size: 11px;
+          font-weight: 500;
+          color: var(--fg-muted);
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
+        .mobile-tab-active { color: var(--accent); }
+
+        /* ── Visibility helpers ──────────────────────── */
+        .desktop-only { display: flex; }
+        .mobile-only  { display: none; }
+        @media (max-width: 639px) {
+          .desktop-only { display: none; }
+          .mobile-only  { display: flex; }
+          .header-status { margin-left: auto; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── Icons ──────────────────────────────────────────────────── */
+function IconChat() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+function IconApproval() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+function IconMonitoring() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
