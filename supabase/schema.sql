@@ -18,11 +18,13 @@ create table if not exists public.profiles (
 alter table public.profiles enable row level security;
 
 -- Users can read their own profile
+drop policy if exists "users_read_own_profile" on public.profiles;
 create policy "users_read_own_profile"
   on public.profiles for select
   using (auth.uid() = id);
 
 -- Users can update their own display_name only (not role)
+drop policy if exists "users_update_own_display_name" on public.profiles;
 create policy "users_update_own_display_name"
   on public.profiles for update
   using (auth.uid() = id)
@@ -39,7 +41,7 @@ returns trigger language plpgsql security definer
 set search_path = public
 as $$
 declare
-  _allowed_domain text := 'smartara.com';  -- TODO: set your domain or remove this guard
+  _allowed_domain text := '';  -- set to e.g. 'smartara.com' to restrict by domain, or leave empty to allow any email
 begin
   -- Optional domain gate: reject sign-ups from outside the org.
   -- Comment out the two lines below if you want to allow any email and rely on admin promotion.
