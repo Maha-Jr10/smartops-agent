@@ -1,0 +1,69 @@
+-- SmartOps Agent - Supabase schema
+-- Run this in the Supabase SQL editor (Dashboard > SQL Editor > New query)
+
+-- 1. Profiles table (extends auth.users)
+--    New users are assigned 'pending' until an admin promotes them.
+--    The backend (auth.py) only allows roles in ALLOWED_ROLES = {commercial, delivery, admin};
+--    'pending' is rejected, forcing explicit promotion before any API access.
+create table if not exists public.profiles (
+  id            uuid primary key references auth.users(id) on delete cascade,
+  email         text not null,
+  display_name  text not null default '',
+  role          text not null default 'pending'
+                check (role in ('pending', 'commercial', 'delivery', 'admin')),
+  created_at    timestamptz not null default now()
+);
+
+-- 2. Row Level Security
+alter table public.profiles enable row level security;
+
+-- Users can read their own profile
+create policy "users_read_own_profile"
+  on public.profiles for select
+  using (auth.uid() = id);
+
+-- Users can update their own display_name only (not role)
+create policy "users_update_own_display_name"
+  on public.profiles for update
+  using (auth.uid() = id)
+  with check (role = (select role from public.profiles where id = auth.uid()));
+
+-- Admins can read all profiles (needed by backend service role, not enforced here)
+-- The backend uses service_role_key which bypasses RLS.
+
+-- 3. Auto-create profile on signup
+-- Change this to your organisation's email domain (or remove the check to allow any domain)
+-- and restart the function after editing.
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer
+set search_path = public
+as $$
+declare
+  _allowed_domain text := 'smartara.com';  -- TODO: set your domain or remove this guard
+begin
+  -- Optional domain gate: reject sign-ups from outside the org.
+  -- Comment out the two lines below if you want to allow any email and rely on admin promotion.
+  if _allowed_domain <> '' and new.email not like ('%@' || _allowed_domain) then
+    raise exception 'Registration restricted to % addresses.', _allowed_domain;
+  end if;
+
+  insert into public.profiles (id, email, display_name, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    'pending'  -- admin must promote to commercial/delivery/admin before API access is granted
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- 4. To promote a user to admin, run:
+--    update public.profiles set role = 'admin' where email = 'admin@example.com';
+-- To promote to delivery:
+--    update public.profiles set role = 'delivery' where email = 'user@example.com';

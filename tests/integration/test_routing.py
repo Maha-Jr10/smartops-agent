@@ -11,19 +11,32 @@ import pytest
 from fastapi.testclient import TestClient
 
 from smartops_agent.api.app import create_app
+from smartops_agent.api.auth import AuthUser, require_admin, require_auth
 
 pytestmark = pytest.mark.integration
+
+_STUB_USER = AuthUser(user_id="test-admin", email="admin@test.local", role="admin")
+
+
+def _stub_auth() -> AuthUser:
+    return _STUB_USER
+
+
+def _make_client() -> TestClient:
+    app = create_app()
+    app.dependency_overrides[require_auth] = _stub_auth
+    app.dependency_overrides[require_admin] = _stub_auth
+    return TestClient(app)
 
 
 @pytest.fixture(scope="module")
 def stable_client() -> TestClient:
-    return TestClient(create_app())
+    return _make_client()
 
 
 @pytest.fixture(scope="module")
 def candidate_client() -> TestClient:
-    # Candidate uses the same app factory in tests (same code, different env)
-    return TestClient(create_app())
+    return _make_client()
 
 
 def test_stable_health(stable_client: TestClient) -> None:

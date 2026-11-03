@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchHealth, type HealthStatus } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import ChatPanel from "@/components/ChatPanel";
 import ApprovalsPanel from "@/components/ApprovalsPanel";
 import MonitoringPanel from "@/components/MonitoringPanel";
@@ -12,6 +13,8 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("chat");
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [apiDown, setApiDown] = useState(false);
+  const { profile, role, signOut } = useAuth();
+  const isAdmin = role === "admin";
 
   useEffect(() => {
     const check = async () => {
@@ -55,13 +58,15 @@ export default function Home() {
             <IconApproval />
             Approbations
           </button>
-          <button
-            onClick={() => setTab("monitoring")}
-            className={`nav-item ${tab === "monitoring" ? "nav-active" : ""}`}
-          >
-            <IconMonitoring />
-            Monitoring
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setTab("monitoring")}
+              className={`nav-item ${tab === "monitoring" ? "nav-active" : ""}`}
+            >
+              <IconMonitoring />
+              Monitoring
+            </button>
+          )}
         </nav>
 
         <div className="header-status">
@@ -71,6 +76,14 @@ export default function Home() {
           </span>
           {health && !apiDown && (
             <span className="status-env">{health.env}</span>
+          )}
+          {profile && (
+            <>
+              <span className="user-name">{profile.display_name || profile.email}</span>
+              <button className="signout-btn" onClick={signOut} title="Déconnexion">
+                <IconSignOut />
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -96,13 +109,15 @@ export default function Home() {
           <IconApproval />
           <span>Approbations</span>
         </button>
-        <button
-          onClick={() => setTab("monitoring")}
-          className={`mobile-tab ${tab === "monitoring" ? "mobile-tab-active" : ""}`}
-        >
-          <IconMonitoring />
-          <span>Monitoring</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setTab("monitoring")}
+            className={`mobile-tab ${tab === "monitoring" ? "mobile-tab-active" : ""}`}
+          >
+            <IconMonitoring />
+            <span>Monitoring</span>
+          </button>
+        )}
       </nav>
 
       <style>{`
@@ -246,6 +261,28 @@ export default function Home() {
         }
         .mobile-tab-active { color: var(--accent); }
 
+        /* ── User / sign-out ─────────────────────────── */
+        .user-name {
+          font-size: 12px;
+          color: var(--fg-secondary);
+          max-width: 120px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .signout-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: var(--fg-muted);
+          display: flex;
+          align-items: center;
+          padding: 4px;
+          border-radius: 5px;
+          transition: color .15s, background .15s;
+        }
+        .signout-btn:hover { color: var(--fg-primary); background: var(--bg-hover); }
+
         /* ── Visibility helpers ──────────────────────── */
         .desktop-only { display: flex; }
         .mobile-only  { display: none; }
@@ -279,6 +316,15 @@ function IconMonitoring() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+function IconSignOut() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   );
 }

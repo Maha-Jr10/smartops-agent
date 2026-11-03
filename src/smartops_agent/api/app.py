@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from prometheus_client import make_asgi_app
@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from smartops_agent import __version__
 from smartops_agent.agent.llm_client import build_llm_client
 from smartops_agent.agent.loop import AgentLoop
+from smartops_agent.api.auth import AuthUser, require_admin, require_auth
 from smartops_agent.config import get_settings, load_config
 from smartops_agent.guardrails.approval_queue import ApprovalQueue, get_queue
 from smartops_agent.monitoring.metrics import (
@@ -149,22 +150,29 @@ def create_app(
         return {"status": "ok", "version": __version__, "env": settings.app_env}
 
     @app.post("/chat", response_model=ChatResponse)
-    def chat(req: ChatRequest, request: Request) -> ChatResponse:
+    def chat(
+        req: ChatRequest,
+        request: Request,
+        user: AuthUser = Depends(require_auth),  # noqa: B008
+    ) -> ChatResponse:
         client_ip = request.client.host if request.client else "unknown"
         _check_rate_limit(client_ip, settings.rate_limit_per_minute)
         _check_daily_llm_cap(settings.daily_llm_call_cap)
 
-        role_label = _safe_role_label(req.role)
+        # Role from verified JWT only — never trust req.role (prevents privilege escalation)
+        verified_role = _safe_role_label(user.role)
+        role_label = verified_role
         t0 = time.monotonic()
         try:
-            # Key on (user_id, session_id) so a user cannot access another user's history
-            session_key = (req.user_id, req.session_id) if req.session_id else None
+            # Use authenticated user_id; session keyed on verified identity
+            verified_user_id = user.user_id
+            session_key = (verified_user_id, req.session_id) if req.session_id else None
             prior_history = _session_history.get(session_key, []) if session_key else []
             agent, tracer = _make_agent()
             answer, new_history = agent.run(
                 user_message=req.message,
-                role=req.role,
-                user_id=req.user_id,
+                role=verified_role,
+                user_id=verified_user_id,
                 history=prior_history,
             )
             if session_key:
@@ -183,15 +191,27 @@ def create_app(
             chat_latency_seconds.observe(time.monotonic() - t0)
 
     @app.get("/approvals")
-    def list_approvals() -> list[dict[str, Any]]:
+    def list_approvals(user: AuthUser = Depends(require_auth)) -> list[dict[str, Any]]:  # noqa: B008
         items = effective_queue.get_all()
         approval_queue_size.set(len([i for i in items if i["status"] == "pending"]))
+        # Admins see all; others see only their own requests
+        if not user.is_admin:
+            items = [i for i in items if i.get("requested_by") == user.user_id]
         return items
 
     @app.post("/approvals/{request_id}")
-    def decide_approval(request_id: str, body: ApprovalDecision) -> dict[str, Any]:
+    def decide_approval(
+        request_id: str,
+        body: ApprovalDecision,
+        user: AuthUser = Depends(require_admin),  # noqa: B008  # admin-only
+    ) -> dict[str, Any]:
         if body.decision not in ("approved", "rejected"):
             raise HTTPException(status_code=422, detail="decision must be 'approved' or 'rejected'")
+        # Prevent self-approval
+        all_items = effective_queue.get_all()
+        item = next((i for i in all_items if i.get("request_id") == request_id), None)
+        if item and item.get("requested_by") == user.user_id:
+            raise HTTPException(status_code=403, detail="Auto-approbation interdite.")
         ok = effective_queue.approve(request_id, body.decision, body.comment)
         if not ok:
             raise HTTPException(status_code=404, detail="Demande introuvable.")
@@ -200,7 +220,7 @@ def create_app(
     _drift_report_path = Path("reports/monitoring/drift_report.html")
 
     @app.get("/report/drift", response_model=None)
-    def drift_report() -> FileResponse | HTMLResponse:
+    def drift_report(_user: AuthUser = Depends(require_admin)) -> FileResponse | HTMLResponse:  # noqa: B008
         if not _drift_report_path.exists():
             return HTMLResponse(
                 "<html><body style='font-family:sans-serif;padding:40px'>"

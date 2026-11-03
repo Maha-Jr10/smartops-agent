@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap');
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --accent:         #2563eb;
+  --accent-hover:   #1d4ed8;
+  --accent-subtle:  #eff6ff;
+  --accent-text:    #1e40af;
+
+  --bg-page:        #f1f5f9;
+  --bg-surface:     #ffffff;
+  --bg-elevated:    #ffffff;
+  --bg-hover:       #f1f5f9;
+  --bg-input:       #f8fafc;
+
+  --fg-primary:     #0f172a;
+  --fg-secondary:   #475569;
+  --fg-muted:       #94a3b8;
+
+  --border:         #e2e8f0;
+  --border-focus:   #93c5fd;
+
+  --bubble-user-bg:   #2563eb;
+  --bubble-user-fg:   #ffffff;
+  --bubble-agent-bg:  #ffffff;
+  --bubble-agent-fg:  #0f172a;
+  --bubble-error-bg:  #fef2f2;
+  --bubble-error-fg:  #dc2626;
+
+  --success:   #10b981;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --accent:         #3b82f6;
+    --accent-hover:   #2563eb;
+    --accent-subtle:  #1e3a5f;
+    --accent-text:    #93c5fd;
+
+    --bg-page:        #0f172a;
+    --bg-surface:     #1e293b;
+    --bg-elevated:    #263041;
+    --bg-hover:       #334155;
+    --bg-input:       #1e293b;
+
+    --fg-primary:     #f1f5f9;
+    --fg-secondary:   #94a3b8;
+    --fg-muted:       #64748b;
+
+    --border:         #334155;
+    --border-focus:   #3b82f6;
+
+    --bubble-user-bg:   #2563eb;
+    --bubble-user-fg:   #ffffff;
+    --bubble-agent-bg:  #1e293b;
+    --bubble-agent-fg:  #e2e8f0;
+    --bubble-error-bg:  #2d1a1a;
+    --bubble-error-fg:  #fca5a5;
+
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --accent:         #3b82f6;
+  --accent-hover:   #2563eb;
+  --accent-subtle:  #1e3a5f;
+  --accent-text:    #93c5fd;
+
+  --bg-page:        #0f172a;
+  --bg-surface:     #1e293b;
+  --bg-elevated:    #263041;
+  --bg-hover:       #334155;
+  --bg-input:       #1e293b;
+
+  --fg-primary:     #f1f5f9;
+  --fg-secondary:   #94a3b8;
+  --fg-muted:       #64748b;
+
+  --border:         #334155;
+  --border-focus:   #3b82f6;
+
+  --bubble-user-bg:   #2563eb;
+  --bubble-user-fg:   #ffffff;
+  --bubble-agent-bg:  #1e293b;
+  --bubble-agent-fg:  #e2e8f0;
+  --bubble-error-bg:  #2d1a1a;
+  --bubble-error-fg:  #fca5a5;
+
+  color-scheme: dark;
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--fg-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#__next, main { height: 100%; }
+
+button { font-family: inherit; }
+p { margin: 0; }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
+
+/* ── Focus ring ────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }

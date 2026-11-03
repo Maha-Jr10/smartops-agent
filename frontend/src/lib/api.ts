@@ -1,0 +1,86 @@
+const BASE = "/api";
+
+export type Role = "commercial" | "delivery" | "admin";
+
+async function authHeaders(): Promise<HeadersInit> {
+  try {
+    const { getSupabase } = await import("@/lib/supabase");
+    const { data } = await getSupabase().auth.getSession();
+    const token = data.session?.access_token;
+    if (token) return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  } catch { /* local dev without Supabase */ }
+  return { "Content-Type": "application/json" };
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "agent" | "error";
+  text: string;
+  traceId?: string;
+  timestamp: Date;
+}
+
+export interface Approval {
+  request_id: string;
+  action: string;
+  details: Record<string, unknown>;
+  requested_by: string;
+  role: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  comment?: string;
+}
+
+export interface HealthStatus {
+  status: string;
+  version: string;
+  env: string;
+}
+
+export async function sendChat(
+  message: string,
+  role: Role,
+  userId: string
+): Promise<{ answer: string; trace_id: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/chat`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ message, role, user_id: userId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Erreur inconnue");
+  }
+  return res.json();
+}
+
+export async function fetchApprovals(): Promise<Approval[]> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/approvals`, { headers });
+  if (!res.ok) throw new Error("Impossible de charger les approbations");
+  return res.json();
+}
+
+export async function decideApproval(
+  requestId: string,
+  decision: "approved" | "rejected",
+  comment = ""
+): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/approvals/${requestId}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ decision, comment }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Erreur lors de la décision");
+  }
+}
+
+export async function fetchHealth(): Promise<HealthStatus> {
+  const res = await fetch(`${BASE}/health`);
+  if (!res.ok) throw new Error("API indisponible");
+  return res.json();
+}

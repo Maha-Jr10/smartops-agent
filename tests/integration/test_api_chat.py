@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 import smartops_agent.api.app as app_mod
 from smartops_agent.agent.llm_client import LLMResponse
 from smartops_agent.api.app import create_app
+from smartops_agent.api.auth import AuthUser, require_admin, require_auth
 from smartops_agent.guardrails.approval_queue import ApprovalQueue
 
 pytestmark = pytest.mark.integration
@@ -56,6 +57,13 @@ def fake_llm() -> FakeLLM:
     return FakeLLM(LLMResponse(content="Réponse simulée."))
 
 
+_TEST_ADMIN = AuthUser(user_id="test-admin", email="admin@test.local", role="admin")
+
+
+def _stub_auth() -> AuthUser:
+    return _TEST_ADMIN
+
+
 @pytest.fixture
 def app_client(
     db_path: str,
@@ -72,6 +80,9 @@ def app_client(
     monkeypatch.setattr(llm_mod, "build_llm_client", lambda p, m: fake_llm)
 
     app = create_app(db_path=db_path, queue=queue)
+    # Bypass Supabase auth in integration tests — use a fixed admin identity
+    app.dependency_overrides[require_auth] = _stub_auth
+    app.dependency_overrides[require_admin] = _stub_auth
     return TestClient(app)
 
 
@@ -125,6 +136,9 @@ def test_rate_limit_triggers_429(
         "build_llm_client",
         lambda p, m: FakeLLM(LLMResponse(content="ok")),
     )
-    client = TestClient(create_app(db_path=db_path, queue=queue))
+    app = create_app(db_path=db_path, queue=queue)
+    app.dependency_overrides[require_auth] = _stub_auth
+    app.dependency_overrides[require_admin] = _stub_auth
+    client = TestClient(app)
     resp = client.post("/chat", json={"message": "hi", "role": "commercial", "user_id": "u1"})
     assert resp.status_code == 429

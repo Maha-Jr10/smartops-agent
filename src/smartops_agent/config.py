@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     daily_llm_call_cap: int = 500
     rate_limit_per_minute: int = 10
 
+    # Supabase — required in staging/production, optional for local dev
+    supabase_url: str = ""
+    supabase_anon_key: SecretStr | None = None
+    supabase_service_role_key: SecretStr | None = None
+    supabase_jwt_secret: SecretStr | None = None  # Project Settings → API → JWT Settings
+
+    # Public URL of the deployed API (used by the frontend in production)
+    api_public_url: str = "http://localhost:8000"
+
 
 @lru_cache
 def get_settings() -> Settings:
