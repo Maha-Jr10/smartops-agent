@@ -181,20 +181,23 @@ def require_auth(
         alg = _jwt_alg(token)
 
         if alg == "RS256":
+            from jose import jwk as jose_jwk
+
             keys = _get_jwks(settings.supabase_url)
             kid = _jwt_kid(token)
-            key: Any = next(
+            jwk_dict: dict[str, Any] | None = next(
                 (k for k in keys if kid is None or k.get("kid") == kid),
                 keys[0] if keys else None,
             )
-            if key is None:
+            if jwk_dict is None:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="JWKS unavailable. Try again later.",
                 )
+            rsa_key = jose_jwk.construct(jwk_dict, algorithm="RS256")
             payload: dict[str, Any] = jwt.decode(
                 token,
-                key,
+                rsa_key,
                 algorithms=["RS256"],
                 audience="authenticated",
                 options={"verify_exp": True},
