@@ -6,12 +6,12 @@ default: groq-large
 models:
   groq-large:
     provider: groq
-    model_id: llama3-70b-8192
+    model_id: llama-3.1-70b-versatile
     price_input_per_mtok: null
     price_output_per_mtok: null
   groq-small:
     provider: groq
-    model_id: llama3-8b-8192
+    model_id: llama-3.1-8b-instant
     price_input_per_mtok: null
     price_output_per_mtok: null
   local:
