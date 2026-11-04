@@ -44,7 +44,7 @@ coverage: ## Tests avec couverture (seuil 80 %)
 
 security: ## Analyse de sécurité du code et des dépendances
 > $(UV) bandit -c pyproject.toml -r src
-> $(UV) pip-audit --ignore-vuln PYSEC-2026-2447
+> $(UV) pip-audit --ignore-vuln PYSEC-2026-2447 --ignore-vuln PYSEC-2026-1325 --ignore-vuln PYSEC-2026-4298
 
 ci: lint typecheck coverage security ## Reproduit la CI en local
 

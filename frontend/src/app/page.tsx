@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchHealth, type HealthStatus } from "@/lib/api";
+import { fetchHealth, fetchGroqKeyStatus, updateGroqKey, type HealthStatus, type GroqKeyStatus } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ChatPanel from "@/components/ChatPanel";
 import ApprovalsPanel from "@/components/ApprovalsPanel";
@@ -13,8 +13,42 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("chat");
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [apiDown, setApiDown] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [groqStatus, setGroqStatus] = useState<GroqKeyStatus | null>(null);
+  const [groqInput, setGroqInput] = useState("");
+  const [groqSaving, setGroqSaving] = useState(false);
+  const [groqMsg, setGroqMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const { profile, role, signOut } = useAuth();
   const isAdmin = role === "admin";
+
+  async function openSettings() {
+    setGroqInput("");
+    setGroqMsg(null);
+    setShowSettings(true);
+    try {
+      const s = await fetchGroqKeyStatus();
+      setGroqStatus(s);
+    } catch {
+      setGroqStatus(null);
+    }
+  }
+
+  async function saveGroqKey() {
+    if (!groqInput.trim()) return;
+    setGroqSaving(true);
+    setGroqMsg(null);
+    try {
+      await updateGroqKey(groqInput.trim());
+      setGroqMsg({ ok: true, text: "Clé mise à jour avec succès." });
+      setGroqInput("");
+      const s = await fetchGroqKeyStatus();
+      setGroqStatus(s);
+    } catch (err) {
+      setGroqMsg({ ok: false, text: err instanceof Error ? err.message : "Erreur inconnue" });
+    } finally {
+      setGroqSaving(false);
+    }
+  }
 
   useEffect(() => {
     const check = async () => {
@@ -80,6 +114,11 @@ export default function Home() {
           {profile && (
             <>
               <span className="user-name">{profile.display_name || profile.email}</span>
+              {isAdmin && (
+                <button className="signout-btn" onClick={openSettings} title="Paramètres admin">
+                  <IconGear />
+                </button>
+              )}
               <button className="signout-btn" onClick={signOut} title="Déconnexion">
                 <IconSignOut />
               </button>
@@ -119,6 +158,45 @@ export default function Home() {
           </button>
         )}
       </nav>
+
+      {/* ── Admin settings modal ─────────────────────────────── */}
+      {showSettings && (
+        <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Paramètres admin</span>
+              <button className="modal-close" onClick={() => setShowSettings(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-label">Clé API Groq</p>
+              {groqStatus && (
+                <p className="modal-status">
+                  {groqStatus.has_key === "true"
+                    ? <>Clé active : <code>{groqStatus.masked}</code> <span className="source-tag">{groqStatus.source}</span></>
+                    : "Aucune clé configurée"}
+                </p>
+              )}
+              <input
+                className="modal-input"
+                type="password"
+                placeholder="gsk_..."
+                value={groqInput}
+                onChange={e => setGroqInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") saveGroqKey(); }}
+              />
+              {groqMsg && (
+                <p className={`modal-msg ${groqMsg.ok ? "msg-ok" : "msg-err"}`}>{groqMsg.text}</p>
+              )}
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setShowSettings(false)}>Annuler</button>
+                <button className="btn-primary" onClick={saveGroqKey} disabled={!groqInput.trim() || groqSaving}>
+                  {groqSaving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         /* ── Layout ──────────────────────────────────── */
@@ -261,6 +339,63 @@ export default function Home() {
         }
         .mobile-tab-active { color: var(--accent); }
 
+        /* ── Admin settings modal ───────────────────────── */
+        .modal-backdrop {
+          position: fixed; inset: 0; z-index: 100;
+          background: rgba(0,0,0,.45);
+          display: flex; align-items: center; justify-content: center;
+          padding: 16px;
+        }
+        .modal-box {
+          background: var(--bg-surface);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          width: 100%; max-width: 420px;
+          box-shadow: 0 20px 60px rgba(0,0,0,.25);
+        }
+        .modal-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 16px 20px 0;
+        }
+        .modal-title { font-size: 15px; font-weight: 600; color: var(--fg-primary); }
+        .modal-close {
+          background: none; border: none; cursor: pointer;
+          color: var(--fg-muted); font-size: 16px; padding: 4px;
+          border-radius: 6px; line-height: 1;
+        }
+        .modal-close:hover { background: var(--bg-hover); color: var(--fg-primary); }
+        .modal-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+        .modal-label { font-size: 12px; font-weight: 500; color: var(--fg-secondary); }
+        .modal-status { font-size: 12px; color: var(--fg-muted); }
+        .modal-status code { font-family: monospace; color: var(--fg-secondary); }
+        .source-tag {
+          font-size: 10px; padding: 1px 6px; border-radius: 4px;
+          background: var(--bg-hover); color: var(--fg-muted);
+        }
+        .modal-input {
+          width: 100%; padding: 9px 12px; border-radius: 8px;
+          border: 1px solid var(--border); background: var(--bg-input);
+          color: var(--fg-primary); font-size: 13px; font-family: monospace;
+          box-sizing: border-box;
+        }
+        .modal-input:focus { outline: none; border-color: var(--border-focus); }
+        .modal-msg { font-size: 12px; }
+        .msg-ok { color: #10b981; }
+        .msg-err { color: #ef4444; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+        .btn-secondary {
+          padding: 7px 14px; border-radius: 8px; font-size: 13px;
+          border: 1px solid var(--border); background: none;
+          color: var(--fg-secondary); cursor: pointer;
+        }
+        .btn-secondary:hover { background: var(--bg-hover); }
+        .btn-primary {
+          padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+          border: none; background: var(--accent); color: #fff; cursor: pointer;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+        .btn-primary:disabled { opacity: .5; cursor: default; }
+
         /* ── User / sign-out ─────────────────────────── */
         .user-name {
           font-size: 12px;
@@ -325,6 +460,14 @@ function IconSignOut() {
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+function IconGear() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   );
 }

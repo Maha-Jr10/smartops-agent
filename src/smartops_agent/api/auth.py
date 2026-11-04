@@ -2,12 +2,19 @@
 
 Validates Bearer tokens issued by Supabase Auth, then fetches the caller's
 role from the `profiles` table using the service-role key.
+
+Supports both HS256 (legacy JWT secret) and RS256 (new asymmetric JWT keys).
+The algorithm is read from the token header; RS256 tokens are verified against
+Supabase's JWKS endpoint (/auth/v1/.well-known/jwks.json).
 """
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import time
+import urllib.request
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -34,6 +41,50 @@ def _get_jwt_secret() -> str:
     if not secret:
         raise RuntimeError("SUPABASE_JWT_SECRET is not configured.")
     return secret
+
+
+# ---------------------------------------------------------------------------
+# JWKS cache for RS256 tokens (Supabase "new JWT" / asymmetric keys)
+# ---------------------------------------------------------------------------
+_JWKS_CACHE: list[dict[str, Any]] = []
+_JWKS_CACHE_EXPIRES: float = 0.0
+_JWKS_CACHE_TTL = 3600  # 1 hour
+
+
+def _get_jwks(supabase_url: str) -> list[dict[str, Any]]:  # pragma: no cover
+    global _JWKS_CACHE, _JWKS_CACHE_EXPIRES
+    now = time.monotonic()
+    if _JWKS_CACHE and now < _JWKS_CACHE_EXPIRES:
+        return _JWKS_CACHE
+    url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
+    with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310  # nosec B310
+        jwks: dict[str, Any] = json.loads(resp.read())
+    _JWKS_CACHE = jwks.get("keys", [])
+    _JWKS_CACHE_EXPIRES = now + _JWKS_CACHE_TTL
+    return _JWKS_CACHE
+
+
+def _jwt_alg(token: str) -> str:
+    """Read the algorithm from the JWT header without verifying the signature."""
+    try:
+        header_b64 = token.split(".")[0]
+        padding = 4 - len(header_b64) % 4
+        header = json.loads(base64.urlsafe_b64decode(header_b64 + "=" * padding))
+        return str(header.get("alg", "HS256"))
+    except Exception:
+        return "HS256"
+
+
+def _jwt_kid(token: str) -> str | None:
+    """Read the key-id from the JWT header."""
+    try:
+        header_b64 = token.split(".")[0]
+        padding = 4 - len(header_b64) % 4
+        header = json.loads(base64.urlsafe_b64decode(header_b64 + "=" * padding))
+        kid = header.get("kid")
+        return str(kid) if kid is not None else None
+    except Exception:
+        return None
 
 
 # TTL cache for granted roles only — denials and errors are never cached so
@@ -126,13 +177,36 @@ def require_auth(
     try:
         from jose import ExpiredSignatureError, JWTError, jwt  # type: ignore[import-untyped]
 
-        payload: dict[str, Any] = jwt.decode(
-            credentials.credentials,
-            _get_jwt_secret(),
-            algorithms=["HS256"],
-            audience="authenticated",
-            options={"verify_exp": True},
-        )
+        token = credentials.credentials
+        alg = _jwt_alg(token)
+
+        if alg == "RS256":
+            keys = _get_jwks(settings.supabase_url)
+            kid = _jwt_kid(token)
+            key: Any = next(
+                (k for k in keys if kid is None or k.get("kid") == kid),
+                keys[0] if keys else None,
+            )
+            if key is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="JWKS unavailable. Try again later.",
+                )
+            payload: dict[str, Any] = jwt.decode(
+                token,
+                key,
+                algorithms=["RS256"],
+                audience="authenticated",
+                options={"verify_exp": True},
+            )
+        else:
+            payload = jwt.decode(
+                token,
+                _get_jwt_secret(),
+                algorithms=["HS256"],
+                audience="authenticated",
+                options={"verify_exp": True},
+            )
     except ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired."

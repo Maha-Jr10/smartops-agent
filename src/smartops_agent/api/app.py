@@ -15,7 +15,11 @@ from prometheus_client import make_asgi_app
 from pydantic import BaseModel
 
 from smartops_agent import __version__
-from smartops_agent.agent.llm_client import build_llm_client
+from smartops_agent.agent.llm_client import (
+    build_llm_client,
+    get_effective_groq_key,
+    invalidate_groq_key_cache,
+)
 from smartops_agent.agent.loop import AgentLoop
 from smartops_agent.api.auth import AuthUser, require_admin, require_auth
 from smartops_agent.config import get_settings, load_config
@@ -57,6 +61,10 @@ class ChatResponse(BaseModel):
 class ApprovalDecision(BaseModel):
     decision: str  # "approved" | "rejected"
     comment: str = ""
+
+
+class GroqKeyUpdate(BaseModel):
+    api_key: str
 
 
 # ---------------------------------------------------------------------------
@@ -140,9 +148,9 @@ def create_app(
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3001", "http://localhost:3000"],
-        allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["Content-Type", "Authorization"],
     )
 
     @app.get("/health")
@@ -216,6 +224,56 @@ def create_app(
         if not ok:
             raise HTTPException(status_code=404, detail="Demande introuvable.")
         return {"request_id": request_id, "status": body.decision}
+
+    @app.get("/settings/groq-key")
+    def get_groq_key_status(
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, str]:
+        current = get_effective_groq_key()
+        masked = (
+            (current[:8] + "…" + current[-4:]) if len(current) > 12 else ("***" if current else "")
+        )
+        # Determine whether the key comes from Supabase override or env var
+        source = "env"
+        if settings.supabase_url and settings.supabase_service_role_key:
+            try:
+                from supabase import create_client
+
+                client = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key.get_secret_value(),
+                )
+                resp = (
+                    client.table("app_settings")
+                    .select("value")
+                    .eq("key", "groq_api_key")
+                    .single()
+                    .execute()
+                )
+                if isinstance(resp.data, dict) and resp.data.get("value"):
+                    source = "override"
+            except Exception:
+                log.debug("Could not determine Groq key source from Supabase", exc_info=True)
+        return {"has_key": "true" if current else "false", "masked": masked, "source": source}
+
+    @app.put("/settings/groq-key")
+    def update_groq_key(
+        body: GroqKeyUpdate,
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, str]:
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            raise HTTPException(status_code=503, detail="Supabase non configuré.")
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        client.table("app_settings").upsert(
+            {"key": "groq_api_key", "value": body.api_key}
+        ).execute()
+        invalidate_groq_key_cache()
+        return {"status": "updated"}
 
     _drift_report_path = Path("reports/monitoring/drift_report.html")
 

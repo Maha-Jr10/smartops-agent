@@ -7,7 +7,7 @@
 --    'pending' is rejected, forcing explicit promotion before any API access.
 create table if not exists public.profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
-  email         text not null,
+  email         text not null default '',
   display_name  text not null default '',
   role          text not null default 'pending'
                 check (role in ('pending', 'commercial', 'delivery', 'admin')),
@@ -52,10 +52,15 @@ begin
   insert into public.profiles (id, email, display_name, role)
   values (
     new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
-    'pending'  -- admin must promote to commercial/delivery/admin before API access is granted
-  );
+    coalesce(new.email, ''),
+    coalesce(
+      new.raw_user_meta_data->>'display_name',
+      split_part(coalesce(new.email, ''), '@', 1),
+      ''
+    ),
+    'pending'
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
@@ -65,7 +70,18 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 4. To promote a user to admin, run:
+-- 4. App-level settings (admin-writable key-value store, used for runtime overrides)
+--    Currently stores: groq_api_key (overrides GROQ_API_KEY env var without redeploying)
+create table if not exists public.app_settings (
+  key         text primary key,
+  value       text not null default '',
+  updated_at  timestamptz not null default now()
+);
+
+alter table public.app_settings enable row level security;
+-- No client-side policies; the backend uses service_role_key which bypasses RLS.
+
+-- 5. To promote a user to admin, run:
 --    update public.profiles set role = 'admin' where email = 'admin@example.com';
 -- To promote to delivery:
 --    update public.profiles set role = 'delivery' where email = 'user@example.com';

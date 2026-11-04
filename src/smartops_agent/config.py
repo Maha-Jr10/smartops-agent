@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Public URL of the deployed API (used by the frontend in production)
     api_public_url: str = "http://localhost:8000"
 
+    # Allowed CORS origins (JSON list in env: '["https://app.netlify.app"]')
+    cors_origins: list[str] = ["http://localhost:3001", "http://localhost:3000"]
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -39,14 +39,12 @@ export interface HealthStatus {
 
 export async function sendChat(
   message: string,
-  role: Role,
-  userId: string
 ): Promise<{ answer: string; trace_id: string }> {
   const headers = await authHeaders();
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ message, role, user_id: userId }),
+    body: JSON.stringify({ message }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -83,4 +81,30 @@ export async function fetchHealth(): Promise<HealthStatus> {
   const res = await fetch(`${BASE}/health`);
   if (!res.ok) throw new Error("API indisponible");
   return res.json();
+}
+
+export interface GroqKeyStatus {
+  has_key: string;
+  masked: string;
+  source: string;
+}
+
+export async function fetchGroqKeyStatus(): Promise<GroqKeyStatus> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/settings/groq-key`, { headers });
+  if (!res.ok) throw new Error("Impossible de charger le statut de la clé");
+  return res.json();
+}
+
+export async function updateGroqKey(apiKey: string): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/settings/groq-key`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ api_key: apiKey }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la mise à jour");
+  }
 }

@@ -1,13 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useId, type FormEvent, type KeyboardEvent } from "react";
-import { sendChat, type Role, type ChatMessage } from "@/lib/api";
-
-const ROLE_OPTIONS: { value: Role; label: string; color: string }[] = [
-  { value: "commercial",  label: "Commercial",  color: "#2563eb" },
-  { value: "delivery",    label: "Delivery",    color: "#7c3aed" },
-  { value: "admin",       label: "Admin",       color: "#0f766e" },
-];
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { sendChat, type ChatMessage } from "@/lib/api";
 
 const SUGGESTIONS = [
   "Cherche le client Diallo",
@@ -22,15 +16,10 @@ function genId() { return `msg-${++idCounter}`; }
 export default function ChatPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [role, setRole] = useState<Role>("commercial");
-  const [userId, setUserId] = useState("u1");
   const [loading, setLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
-  const userIdId  = useId();
-  const roleId    = useId();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -50,7 +39,7 @@ export default function ChatPanel() {
     setLoading(true);
 
     try {
-      const { answer, trace_id } = await sendChat(trimmed, role, userId);
+      const { answer, trace_id } = await sendChat(trimmed);
       setMessages(prev => [...prev, {
         id: genId(), role: "agent", text: answer, traceId: trace_id, timestamp: new Date(),
       }]);
@@ -83,31 +72,12 @@ export default function ChatPanel() {
     inputRef.current?.focus();
   }
 
-  const roleInfo = ROLE_OPTIONS.find(r => r.value === role)!;
-
   return (
     <div className="chat-shell">
 
       {/* ── Toolbar ──────────────────────────────────────────── */}
-      <div className="chat-toolbar">
-        <div className="toolbar-left">
-          <button
-            className={`settings-btn ${showSettings ? "settings-open" : ""}`}
-            onClick={() => setShowSettings(v => !v)}
-            title="Paramètres de session"
-          >
-            <IconSettings />
-            <span
-              className="role-badge"
-              style={{ "--role-color": roleInfo.color } as React.CSSProperties}
-            >
-              {roleInfo.label}
-            </span>
-            <span className="user-badge">{userId}</span>
-            <IconChevron open={showSettings} />
-          </button>
-        </div>
-        {messages.length > 0 && (
+      {messages.length > 0 && (
+        <div className="chat-toolbar">
           <button
             className="clear-btn"
             onClick={() => setMessages([])}
@@ -116,38 +86,6 @@ export default function ChatPanel() {
             <IconTrash />
             <span className="clear-label">Effacer</span>
           </button>
-        )}
-      </div>
-
-      {/* ── Settings panel ───────────────────────────────────── */}
-      {showSettings && (
-        <div className="settings-panel">
-          <div className="settings-row">
-            <label htmlFor={roleId} className="settings-label">Rôle</label>
-            <div className="role-select-wrap">
-              {ROLE_OPTIONS.map(r => (
-                <button
-                  key={r.value}
-                  onClick={() => setRole(r.value)}
-                  className={`role-pill ${role === r.value ? "role-pill-active" : ""}`}
-                  style={{ "--role-color": r.color } as React.CSSProperties}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="settings-row">
-            <label htmlFor={userIdId} className="settings-label">Identifiant</label>
-            <input
-              id={userIdId}
-              className="settings-input"
-              value={userId}
-              onChange={e => setUserId(e.target.value)}
-              placeholder="u1"
-              maxLength={32}
-            />
-          </div>
         </div>
       )}
 
@@ -215,40 +153,11 @@ export default function ChatPanel() {
         .chat-toolbar {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 8px max(16px, env(safe-area-inset-left, 0px));
+          justify-content: flex-end;
+          padding: 6px max(16px, env(safe-area-inset-left, 0px));
           background: var(--bg-surface);
           border-bottom: 1px solid var(--border);
           flex-shrink: 0;
-          gap: 8px;
-        }
-        .toolbar-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
-
-        .settings-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 5px 10px;
-          border-radius: 8px;
-          border: 1px solid var(--border);
-          background: var(--bg-input);
-          color: var(--fg-secondary);
-          font-size: 12px;
-          cursor: pointer;
-          transition: background 0.15s, border-color 0.15s;
-        }
-        .settings-btn:hover { background: var(--bg-hover); }
-        .settings-open { border-color: var(--accent); background: var(--accent-subtle); }
-
-        .role-badge {
-          font-weight: 600;
-          font-size: 12px;
-          color: var(--role-color, var(--accent));
-        }
-        .user-badge {
-          color: var(--fg-muted);
-          font-size: 11px;
-          font-family: monospace;
         }
 
         .clear-btn {
@@ -268,60 +177,6 @@ export default function ChatPanel() {
         .clear-btn:hover { background: var(--bg-hover); color: var(--fg-primary); }
         .clear-label { display: none; }
         @media (min-width: 480px) { .clear-label { display: inline; } }
-
-        /* ── Settings panel ─────────────────────────────── */
-        .settings-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 14px max(16px, env(safe-area-inset-left, 0px));
-          background: var(--bg-surface);
-          border-bottom: 1px solid var(--border);
-          flex-shrink: 0;
-        }
-        .settings-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .settings-label {
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--fg-secondary);
-          width: 72px;
-          flex-shrink: 0;
-        }
-        .role-select-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
-        .role-pill {
-          padding: 4px 12px;
-          border-radius: 20px;
-          border: 1.5px solid transparent;
-          background: var(--bg-hover);
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--fg-secondary);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .role-pill:hover { border-color: var(--role-color); color: var(--role-color); }
-        .role-pill-active {
-          background: color-mix(in srgb, var(--role-color) 12%, transparent);
-          border-color: var(--role-color);
-          color: var(--role-color);
-        }
-        .settings-input {
-          flex: 1;
-          max-width: 200px;
-          padding: 5px 10px;
-          border-radius: 7px;
-          border: 1px solid var(--border);
-          background: var(--bg-input);
-          color: var(--fg-primary);
-          font-size: 12px;
-          font-family: monospace;
-        }
-        .settings-input:focus { outline: none; border-color: var(--border-focus); }
 
         /* ── Messages area ──────────────────────────────── */
         .messages-area {
@@ -570,21 +425,6 @@ function TypingIndicator() {
 }
 
 /* ── Icons ──────────────────────────────────────────────────── */
-function IconSettings() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-    </svg>
-  );
-}
-function IconChevron({ open }: { open: boolean }) {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-      style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
-  );
-}
 function IconSend() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
