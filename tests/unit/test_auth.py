@@ -189,16 +189,20 @@ class TestRequireAuth:
             require_auth(credentials=None)
         assert exc_info.value.status_code == 401
 
-    def test_invalid_hs256_token_raises_401(self) -> None:
+    def test_invalid_token_raises_401(self) -> None:
         s = _mock_settings(
             supabase_url="https://x.supabase.co",
-            supabase_jwt_secret=SecretStr("test-secret"),
+            supabase_service_role_key=_mock_service_key(),
         )
         from fastapi.security import HTTPAuthorizationCredentials
+        from supabase_auth.errors import AuthApiError
 
         creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="bad.token.here")
+        mock_client = MagicMock()
+        mock_client.auth.get_user.side_effect = AuthApiError("invalid JWT", 401, None)
         with (
             patch("smartops_agent.config.get_settings", return_value=s),
+            patch("supabase.create_client", return_value=mock_client),
             pytest.raises(HTTPException) as exc_info,
         ):
             require_auth(credentials=creds)

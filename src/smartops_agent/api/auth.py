@@ -1,11 +1,8 @@
 """JWT authentication via Supabase.
 
-Validates Bearer tokens issued by Supabase Auth, then fetches the caller's
-role from the `profiles` table using the service-role key.
-
-Supports both HS256 (legacy JWT secret) and RS256 (new asymmetric JWT keys).
-The algorithm is read from the token header; RS256 tokens are verified against
-Supabase's JWKS endpoint (/auth/v1/.well-known/jwks.json).
+Validates Bearer tokens by calling Supabase's own /auth/v1/user endpoint.
+This works for both HS256 (legacy) and RS256 (asymmetric) tokens without
+any local JWT library handling.
 """
 
 from __future__ import annotations
@@ -14,8 +11,6 @@ import base64
 import json
 import logging
 import time
-import urllib.request
-from typing import Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -41,27 +36,6 @@ def _get_jwt_secret() -> str:
     if not secret:
         raise RuntimeError("SUPABASE_JWT_SECRET is not configured.")
     return secret
-
-
-# ---------------------------------------------------------------------------
-# JWKS cache for RS256 tokens (Supabase "new JWT" / asymmetric keys)
-# ---------------------------------------------------------------------------
-_JWKS_CACHE: list[dict[str, Any]] = []
-_JWKS_CACHE_EXPIRES: float = 0.0
-_JWKS_CACHE_TTL = 3600  # 1 hour
-
-
-def _get_jwks(supabase_url: str) -> list[dict[str, Any]]:  # pragma: no cover
-    global _JWKS_CACHE, _JWKS_CACHE_EXPIRES
-    now = time.monotonic()
-    if _JWKS_CACHE and now < _JWKS_CACHE_EXPIRES:
-        return _JWKS_CACHE
-    url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
-    with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310  # nosec B310
-        jwks: dict[str, Any] = json.loads(resp.read())
-    _JWKS_CACHE = jwks.get("keys", [])
-    _JWKS_CACHE_EXPIRES = now + _JWKS_CACHE_TTL
-    return _JWKS_CACHE
 
 
 def _jwt_alg(token: str) -> str:
@@ -174,54 +148,43 @@ def require_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    token = credentials.credentials
+    svc_key = (
+        settings.supabase_service_role_key.get_secret_value()
+        if settings.supabase_service_role_key
+        else ""
+    )
+
     try:
-        import jwt as pyjwt
-        from jwt.algorithms import RSAAlgorithm
-        from jwt.exceptions import ExpiredSignatureError, PyJWTError
+        from supabase import create_client
+        from supabase_auth.errors import AuthApiError, AuthError
 
-        token = credentials.credentials
-        alg = _jwt_alg(token)
-
-        if alg == "RS256":
-            keys = _get_jwks(settings.supabase_url)
-            kid = _jwt_kid(token)
-            jwk_dict: dict[str, Any] | None = next(
-                (k for k in keys if kid is None or k.get("kid") == kid),
-                keys[0] if keys else None,
-            )
-            if jwk_dict is None:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="JWKS unavailable. Try again later.",
-                )
-            # from_jwk returns RSAPrivateKey|RSAPublicKey; JWKS only has public keys
-            rsa_public_key = RSAAlgorithm.from_jwk(jwk_dict)
-            payload: dict[str, Any] = pyjwt.decode(
-                token,
-                rsa_public_key,  # type: ignore[arg-type]
-                algorithms=["RS256"],
-                audience="authenticated",
-            )
-        else:
-            payload = pyjwt.decode(
-                token,
-                _get_jwt_secret(),
-                algorithms=["HS256"],
-                audience="authenticated",
-            )
-    except ExpiredSignatureError as exc:
+        client = create_client(settings.supabase_url, svc_key)
+        resp = client.auth.get_user(token)
+        user = resp.user if resp is not None else None
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
+        user_id: str = str(user.id)
+        email: str = user.email or ""
+    except HTTPException:
+        raise
+    except AuthApiError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {exc.message}",
         ) from exc
-    except PyJWTError as exc:
+    except AuthError as exc:
+        log.warning("Auth service error: %s", exc)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable.",
         ) from exc
-
-    user_id: str = payload.get("sub", "")
-    email: str = payload.get("email", "")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing sub.")
+    except Exception as exc:
+        log.warning("Auth service unreachable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable.",
+        ) from exc
 
     role = _fetch_role(user_id)
     return AuthUser(user_id=user_id, email=email, role=role)
