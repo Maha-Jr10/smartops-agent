@@ -13,6 +13,14 @@ from smartops_agent.config import get_settings
 
 log = logging.getLogger(__name__)
 
+# Free Groq models available on all plans — shown in the admin settings dropdown.
+FREE_GROQ_MODELS: list[dict[str, str]] = [
+    {"id": "llama3-70b-8192", "label": "Llama 3 70B (recommandé)"},
+    {"id": "llama3-8b-8192", "label": "Llama 3 8B (rapide)"},
+    {"id": "mixtral-8x7b-32768", "label": "Mixtral 8x7B"},
+    {"id": "gemma2-9b-it", "label": "Gemma 2 9B"},
+]
+
 # ---------------------------------------------------------------------------
 # Dynamic Groq API key (admin can override via /settings/groq-key)
 # ---------------------------------------------------------------------------
@@ -63,6 +71,61 @@ def get_effective_groq_key() -> str:
 def invalidate_groq_key_cache() -> None:
     global _groq_key_cache
     _groq_key_cache = None
+
+
+# ---------------------------------------------------------------------------
+# Dynamic model selection (admin can override via /settings/model)
+# ---------------------------------------------------------------------------
+
+_model_cache: tuple[str, float] | None = None
+_MODEL_CACHE_TTL = 60  # seconds
+
+
+def _fetch_model_id() -> str:
+    """Read active model from Supabase app_settings, fall back to config default."""
+    settings = get_settings()
+    if settings.supabase_url and settings.supabase_service_role_key:
+        try:
+            from supabase import create_client
+
+            client = create_client(
+                settings.supabase_url,
+                settings.supabase_service_role_key.get_secret_value(),
+            )
+            resp = (
+                client.table("app_settings")
+                .select("value")
+                .eq("key", "active_model_id")
+                .single()
+                .execute()
+            )
+            if isinstance(resp.data, dict):
+                val = resp.data.get("value", "")
+                if val:
+                    return str(val)
+        except Exception:
+            log.debug("Could not fetch active_model_id from Supabase", exc_info=True)
+    from smartops_agent.config import load_config
+
+    models_cfg = load_config("models")
+    default_name = str(models_cfg.get("default", "groq-large"))
+    return str(models_cfg["models"][default_name]["model_id"])
+
+
+def get_effective_model_id() -> str:
+    """Return the active Groq model ID (cached for _MODEL_CACHE_TTL seconds)."""
+    global _model_cache
+    now = time.monotonic()
+    if _model_cache and now < _model_cache[1]:
+        return _model_cache[0]
+    model_id = _fetch_model_id()
+    _model_cache = (model_id, now + _MODEL_CACHE_TTL)
+    return model_id
+
+
+def invalidate_model_cache() -> None:
+    global _model_cache
+    _model_cache = None
 
 
 class LLMResponse:
@@ -180,7 +243,8 @@ class OllamaClient:
 def build_llm_client(provider: str, model_id: str) -> LLMClient:
     settings = get_settings()
     if provider == "groq":
-        return GroqClient(model_id=model_id, api_key=get_effective_groq_key())
+        effective_model = get_effective_model_id()
+        return GroqClient(model_id=effective_model, api_key=get_effective_groq_key())
     if provider == "ollama":
         return OllamaClient(model_id=model_id, base_url=settings.ollama_base_url)
     raise ValueError(f"Fournisseur LLM inconnu : {provider}")

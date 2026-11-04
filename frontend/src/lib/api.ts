@@ -108,3 +108,28 @@ export async function updateGroqKey(apiKey: string): Promise<void> {
     throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la mise à jour");
   }
 }
+
+export interface ModelStatus {
+  current: string;
+  models: { id: string; label: string }[];
+}
+
+export async function fetchModelStatus(): Promise<ModelStatus> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/settings/model`, { headers });
+  if (!res.ok) throw new Error("Impossible de charger le modèle actif");
+  return res.json();
+}
+
+export async function updateModel(modelId: string): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/settings/model`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ model_id: modelId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la mise à jour");
+  }
+}

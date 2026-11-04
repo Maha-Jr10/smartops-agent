@@ -16,9 +16,12 @@ from pydantic import BaseModel
 
 from smartops_agent import __version__
 from smartops_agent.agent.llm_client import (
+    FREE_GROQ_MODELS,
     build_llm_client,
     get_effective_groq_key,
+    get_effective_model_id,
     invalidate_groq_key_cache,
+    invalidate_model_cache,
 )
 from smartops_agent.agent.loop import AgentLoop
 from smartops_agent.api.auth import AuthUser, require_admin, require_auth
@@ -65,6 +68,10 @@ class ApprovalDecision(BaseModel):
 
 class GroqKeyUpdate(BaseModel):
     api_key: str
+
+
+class ModelUpdate(BaseModel):
+    model_id: str
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +281,34 @@ def create_app(
         ).execute()
         invalidate_groq_key_cache()
         return {"status": "updated"}
+
+    @app.get("/settings/model")
+    def get_model_status(
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, object]:
+        return {"current": get_effective_model_id(), "models": FREE_GROQ_MODELS}
+
+    @app.put("/settings/model")
+    def update_model(
+        body: ModelUpdate,
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, str]:
+        valid_ids = {m["id"] for m in FREE_GROQ_MODELS}
+        if body.model_id not in valid_ids:
+            raise HTTPException(status_code=422, detail="Modèle non reconnu.")
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            raise HTTPException(status_code=503, detail="Supabase non configuré.")
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        client.table("app_settings").upsert(
+            {"key": "active_model_id", "value": body.model_id}
+        ).execute()
+        invalidate_model_cache()
+        return {"status": "updated", "model_id": body.model_id}
 
     _drift_report_path = Path("reports/monitoring/drift_report.html")
 

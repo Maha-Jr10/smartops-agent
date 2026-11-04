@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchHealth, fetchGroqKeyStatus, updateGroqKey, type HealthStatus, type GroqKeyStatus } from "@/lib/api";
+import { fetchHealth, fetchGroqKeyStatus, updateGroqKey, fetchModelStatus, updateModel, type HealthStatus, type GroqKeyStatus, type ModelStatus } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ChatPanel from "@/components/ChatPanel";
 import ApprovalsPanel from "@/components/ApprovalsPanel";
@@ -18,18 +18,40 @@ export default function Home() {
   const [groqInput, setGroqInput] = useState("");
   const [groqSaving, setGroqSaving] = useState(false);
   const [groqMsg, setGroqMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
+  const [modelSelected, setModelSelected] = useState("");
+  const [modelSaving, setModelSaving] = useState(false);
+  const [modelMsg, setModelMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const { profile, role, signOut } = useAuth();
   const isAdmin = role === "admin";
 
   async function openSettings() {
     setGroqInput("");
     setGroqMsg(null);
+    setModelMsg(null);
     setShowSettings(true);
     try {
-      const s = await fetchGroqKeyStatus();
+      const [s, m] = await Promise.all([fetchGroqKeyStatus(), fetchModelStatus()]);
       setGroqStatus(s);
+      setModelStatus(m);
+      setModelSelected(m.current);
     } catch {
       setGroqStatus(null);
+      setModelStatus(null);
+    }
+  }
+
+  async function saveModel() {
+    if (!modelSelected) return;
+    setModelSaving(true);
+    setModelMsg(null);
+    try {
+      await updateModel(modelSelected);
+      setModelMsg({ ok: true, text: "Modèle mis à jour." });
+    } catch (err) {
+      setModelMsg({ ok: false, text: err instanceof Error ? err.message : "Erreur inconnue" });
+    } finally {
+      setModelSaving(false);
     }
   }
 
@@ -168,6 +190,35 @@ export default function Home() {
               <button className="modal-close" onClick={() => setShowSettings(false)}>✕</button>
             </div>
             <div className="modal-body">
+              <p className="modal-label">Modèle Groq</p>
+              {modelStatus ? (
+                <select
+                  className="modal-select"
+                  value={modelSelected}
+                  onChange={e => { setModelSelected(e.target.value); setModelMsg(null); }}
+                >
+                  {modelStatus.models.map(m => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="modal-status">Chargement…</p>
+              )}
+              {modelMsg && (
+                <p className={`modal-msg ${modelMsg.ok ? "msg-ok" : "msg-err"}`}>{modelMsg.text}</p>
+              )}
+              <div className="modal-actions" style={{ marginBottom: 8 }}>
+                <button
+                  className="btn-primary"
+                  onClick={saveModel}
+                  disabled={!modelSelected || modelSaving || modelSelected === modelStatus?.current}
+                >
+                  {modelSaving ? "Enregistrement…" : "Appliquer le modèle"}
+                </button>
+              </div>
+
+              <hr className="modal-sep" />
+
               <p className="modal-label">Clé API Groq</p>
               {groqStatus && (
                 <p className="modal-status">
@@ -188,9 +239,9 @@ export default function Home() {
                 <p className={`modal-msg ${groqMsg.ok ? "msg-ok" : "msg-err"}`}>{groqMsg.text}</p>
               )}
               <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowSettings(false)}>Annuler</button>
+                <button className="btn-secondary" onClick={() => setShowSettings(false)}>Fermer</button>
                 <button className="btn-primary" onClick={saveGroqKey} disabled={!groqInput.trim() || groqSaving}>
-                  {groqSaving ? "Enregistrement…" : "Enregistrer"}
+                  {groqSaving ? "Enregistrement…" : "Mettre à jour la clé"}
                 </button>
               </div>
             </div>
@@ -372,6 +423,14 @@ export default function Home() {
           font-size: 10px; padding: 1px 6px; border-radius: 4px;
           background: var(--bg-hover); color: var(--fg-muted);
         }
+        .modal-sep { border: none; border-top: 1px solid var(--border); margin: 4px 0 8px; }
+        .modal-select {
+          width: 100%; padding: 9px 12px; border-radius: 8px;
+          border: 1px solid var(--border); background: var(--bg-input);
+          color: var(--fg-primary); font-size: 13px;
+          box-sizing: border-box; cursor: pointer;
+        }
+        .modal-select:focus { outline: none; border-color: var(--border-focus); }
         .modal-input {
           width: 100%; padding: 9px 12px; border-radius: 8px;
           border: 1px solid var(--border); background: var(--bg-input);
