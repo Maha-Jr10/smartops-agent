@@ -175,14 +175,14 @@ def require_auth(
         )
 
     try:
-        from jose import ExpiredSignatureError, JWTError, jwt  # type: ignore[import-untyped]
+        import jwt as pyjwt
+        from jwt.algorithms import RSAAlgorithm
+        from jwt.exceptions import ExpiredSignatureError, PyJWTError
 
         token = credentials.credentials
         alg = _jwt_alg(token)
 
         if alg == "RS256":
-            from jose import jwk as jose_jwk
-
             keys = _get_jwks(settings.supabase_url)
             kid = _jwt_kid(token)
             jwk_dict: dict[str, Any] | None = next(
@@ -194,27 +194,26 @@ def require_auth(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="JWKS unavailable. Try again later.",
                 )
-            rsa_key = jose_jwk.construct(jwk_dict, algorithm="RS256")
-            payload: dict[str, Any] = jwt.decode(
+            # from_jwk returns RSAPrivateKey|RSAPublicKey; JWKS only has public keys
+            rsa_public_key = RSAAlgorithm.from_jwk(jwk_dict)
+            payload: dict[str, Any] = pyjwt.decode(
                 token,
-                rsa_key,
+                rsa_public_key,  # type: ignore[arg-type]
                 algorithms=["RS256"],
                 audience="authenticated",
-                options={"verify_exp": True},
             )
         else:
-            payload = jwt.decode(
+            payload = pyjwt.decode(
                 token,
                 _get_jwt_secret(),
                 algorithms=["HS256"],
                 audience="authenticated",
-                options={"verify_exp": True},
             )
     except ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired."
         ) from exc
-    except JWTError as exc:
+    except PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}"
         ) from exc
