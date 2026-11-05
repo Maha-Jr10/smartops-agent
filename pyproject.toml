@@ -16,7 +16,6 @@ dependencies = [
     "structlog>=24.1",
     "prometheus-client>=0.20",
     "tenacity>=8.5",
-    "python-jose[cryptography]>=3.3",
     "supabase>=2.9",
 ]
 
