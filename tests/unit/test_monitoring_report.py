@@ -179,6 +179,19 @@ def _mock_evidently_modules() -> dict[str, MagicMock]:
     }
 
 
+def _mock_pandas_module() -> MagicMock:
+    """Return a sys.modules mock for pandas (not installed in CI's dev group)."""
+    mock_current = MagicMock()
+    mock_current.empty = False
+    mock_slice = MagicMock()
+    mock_slice.reset_index.return_value = mock_current
+    mock_df_instance = MagicMock()
+    mock_df_instance.iloc.__getitem__.return_value = mock_slice
+    mock_pd = MagicMock()
+    mock_pd.DataFrame.return_value = mock_df_instance
+    return mock_pd
+
+
 def test_run_report_success(tmp_path: Path) -> None:
     traces = tmp_path / "traces.jsonl"
     report = tmp_path / "report.html"
@@ -186,7 +199,7 @@ def test_run_report_success(tmp_path: Path) -> None:
 
     mocks = _mock_evidently_modules()
     mock_report_instance = mocks.pop("_mock_report_instance")
-    sys_mods = mocks
+    sys_mods = {**mocks, "pandas": _mock_pandas_module()}
 
     with (
         patch.dict("sys.modules", sys_mods),
