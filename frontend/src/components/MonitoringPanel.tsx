@@ -4,23 +4,27 @@ import { useState } from "react";
 
 type MonTab = "grafana" | "mlflow" | "evidently";
 
+const _grafana  = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3002";
+const _mlflow   = process.env.NEXT_PUBLIC_MLFLOW_URL  ?? "http://localhost:5000";
+const _api      = process.env.NEXT_PUBLIC_API_URL     ?? "http://localhost:8000";
+
 const TABS: { id: MonTab; label: string; url: string; hint: string }[] = [
   {
     id: "grafana",
     label: "Grafana",
-    url: "http://localhost:3002",
+    url: _grafana,
     hint: "Métriques live : latence P50/P95, requêtes, appels outils",
   },
   {
     id: "mlflow",
     label: "MLflow",
-    url: "http://localhost:5000",
+    url: _mlflow,
     hint: "Expériences d'évaluation, paramètres, artefacts",
   },
   {
     id: "evidently",
     label: "Evidently",
-    url: "http://localhost:8000/report/drift",
+    url: `${_api}/report/drift`,
     hint: "Rapport de dérive des données (traces JSONL)",
   },
 ];
