@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     app_env: Literal["local", "ci", "staging", "production"] = "local"
     log_level: str = "INFO"
     groq_api_key: SecretStr | None = None
+    openrouter_api_key: SecretStr | None = None
     ollama_base_url: str = "http://localhost:11434"
     mlflow_tracking_uri: str = "sqlite:///mlflow.db"
     daily_llm_call_cap: int = 500

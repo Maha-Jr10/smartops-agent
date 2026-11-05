@@ -1,17 +1,17 @@
 # Modèles candidats comparés dans MLflow.
 # Vérifier la disponibilité des identifiants et les prix sur la page officielle du fournisseur
 # avant la première expérience : les prix (USD par million de tokens) sont à renseigner.
-default: groq-large
+default: openrouter-large
 
 models:
-  groq-large:
-    provider: groq
-    model_id: openai/gpt-oss-120b
+  openrouter-large:
+    provider: openrouter
+    model_id: meta-llama/llama-3.1-8b-instruct:free
     price_input_per_mtok: null
     price_output_per_mtok: null
-  groq-small:
-    provider: groq
-    model_id: openai/gpt-oss-20b
+  openrouter-small:
+    provider: openrouter
+    model_id: meta-llama/llama-3.1-8b-instruct:free
     price_input_per_mtok: null
     price_output_per_mtok: null
   local:

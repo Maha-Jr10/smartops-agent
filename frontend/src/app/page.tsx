@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchHealth, fetchGroqKeyStatus, updateGroqKey, fetchModelStatus, updateModel, type HealthStatus, type GroqKeyStatus, type ModelStatus } from "@/lib/api";
+import { fetchHealth, fetchOpenRouterKeyStatus, updateOpenRouterKey, fetchModelStatus, updateModel, type HealthStatus, type OpenRouterKeyStatus, type ModelStatus } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ChatPanel from "@/components/ChatPanel";
 import ApprovalsPanel from "@/components/ApprovalsPanel";
@@ -14,10 +14,10 @@ export default function Home() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [apiDown, setApiDown] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [groqStatus, setGroqStatus] = useState<GroqKeyStatus | null>(null);
-  const [groqInput, setGroqInput] = useState("");
-  const [groqSaving, setGroqSaving] = useState(false);
-  const [groqMsg, setGroqMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [orStatus, setOrStatus] = useState<OpenRouterKeyStatus | null>(null);
+  const [orInput, setOrInput] = useState("");
+  const [orSaving, setOrSaving] = useState(false);
+  const [orMsg, setOrMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [modelSelected, setModelSelected] = useState("");
   const [modelSaving, setModelSaving] = useState(false);
@@ -26,17 +26,17 @@ export default function Home() {
   const isAdmin = role === "admin";
 
   async function openSettings() {
-    setGroqInput("");
-    setGroqMsg(null);
+    setOrInput("");
+    setOrMsg(null);
     setModelMsg(null);
     setShowSettings(true);
     try {
-      const [s, m] = await Promise.all([fetchGroqKeyStatus(), fetchModelStatus()]);
-      setGroqStatus(s);
+      const [s, m] = await Promise.all([fetchOpenRouterKeyStatus(), fetchModelStatus()]);
+      setOrStatus(s);
       setModelStatus(m);
       setModelSelected(m.current);
     } catch {
-      setGroqStatus(null);
+      setOrStatus(null);
       setModelStatus(null);
     }
   }
@@ -55,20 +55,20 @@ export default function Home() {
     }
   }
 
-  async function saveGroqKey() {
-    if (!groqInput.trim()) return;
-    setGroqSaving(true);
-    setGroqMsg(null);
+  async function saveOrKey() {
+    if (!orInput.trim()) return;
+    setOrSaving(true);
+    setOrMsg(null);
     try {
-      await updateGroqKey(groqInput.trim());
-      setGroqMsg({ ok: true, text: "Clé mise à jour avec succès." });
-      setGroqInput("");
-      const s = await fetchGroqKeyStatus();
-      setGroqStatus(s);
+      await updateOpenRouterKey(orInput.trim());
+      setOrMsg({ ok: true, text: "Clé mise à jour avec succès." });
+      setOrInput("");
+      const s = await fetchOpenRouterKeyStatus();
+      setOrStatus(s);
     } catch (err) {
-      setGroqMsg({ ok: false, text: err instanceof Error ? err.message : "Erreur inconnue" });
+      setOrMsg({ ok: false, text: err instanceof Error ? err.message : "Erreur inconnue" });
     } finally {
-      setGroqSaving(false);
+      setOrSaving(false);
     }
   }
 
@@ -190,7 +190,7 @@ export default function Home() {
               <button className="modal-close" onClick={() => setShowSettings(false)}>✕</button>
             </div>
             <div className="modal-body">
-              <p className="modal-label">Modèle Groq</p>
+              <p className="modal-label">Modèle OpenRouter</p>
               {modelStatus ? (
                 <select
                   className="modal-select"
@@ -219,29 +219,29 @@ export default function Home() {
 
               <hr className="modal-sep" />
 
-              <p className="modal-label">Clé API Groq</p>
-              {groqStatus && (
+              <p className="modal-label">Clé API OpenRouter</p>
+              {orStatus && (
                 <p className="modal-status">
-                  {groqStatus.has_key === "true"
-                    ? <>Clé active : <code>{groqStatus.masked}</code> <span className="source-tag">{groqStatus.source}</span></>
+                  {orStatus.has_key === "true"
+                    ? <>Clé active : <code>{orStatus.masked}</code></>
                     : "Aucune clé configurée"}
                 </p>
               )}
               <input
                 className="modal-input"
                 type="password"
-                placeholder="gsk_..."
-                value={groqInput}
-                onChange={e => setGroqInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") saveGroqKey(); }}
+                placeholder="sk-or-..."
+                value={orInput}
+                onChange={e => setOrInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") saveOrKey(); }}
               />
-              {groqMsg && (
-                <p className={`modal-msg ${groqMsg.ok ? "msg-ok" : "msg-err"}`}>{groqMsg.text}</p>
+              {orMsg && (
+                <p className={`modal-msg ${orMsg.ok ? "msg-ok" : "msg-err"}`}>{orMsg.text}</p>
               )}
               <div className="modal-actions">
                 <button className="btn-secondary" onClick={() => setShowSettings(false)}>Fermer</button>
-                <button className="btn-primary" onClick={saveGroqKey} disabled={!groqInput.trim() || groqSaving}>
-                  {groqSaving ? "Enregistrement…" : "Mettre à jour la clé"}
+                <button className="btn-primary" onClick={saveOrKey} disabled={!orInput.trim() || orSaving}>
+                  {orSaving ? "Enregistrement…" : "Mettre à jour la clé"}
                 </button>
               </div>
             </div>

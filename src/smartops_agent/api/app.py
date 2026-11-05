@@ -16,12 +16,14 @@ from pydantic import BaseModel
 
 from smartops_agent import __version__
 from smartops_agent.agent.llm_client import (
-    FREE_GROQ_MODELS,
+    AVAILABLE_MODELS,
     build_llm_client,
     get_effective_groq_key,
     get_effective_model_id,
+    get_effective_openrouter_key,
     invalidate_groq_key_cache,
     invalidate_model_cache,
+    invalidate_openrouter_key_cache,
 )
 from smartops_agent.agent.loop import AgentLoop
 from smartops_agent.api.auth import AuthUser, require_admin, require_auth
@@ -72,6 +74,10 @@ class GroqKeyUpdate(BaseModel):
 
 class ModelUpdate(BaseModel):
     model_id: str
+
+
+class OpenRouterKeyUpdate(BaseModel):
+    api_key: str
 
 
 # ---------------------------------------------------------------------------
@@ -282,18 +288,49 @@ def create_app(
         invalidate_groq_key_cache()
         return {"status": "updated"}
 
+    @app.get("/settings/openrouter-key")
+    def get_openrouter_key_status(
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, str]:
+        current = get_effective_openrouter_key()
+        masked = (
+            (current[:8] + "..." + current[-4:])
+            if len(current) > 12
+            else ("***" if current else "")
+        )
+        return {"has_key": "true" if current else "false", "masked": masked}
+
+    @app.put("/settings/openrouter-key")
+    def update_openrouter_key(
+        body: OpenRouterKeyUpdate,
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, str]:
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            raise HTTPException(status_code=503, detail="Supabase non configuré.")
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        client.table("app_settings").upsert(
+            {"key": "openrouter_api_key", "value": body.api_key}
+        ).execute()
+        invalidate_openrouter_key_cache()
+        return {"status": "updated"}
+
     @app.get("/settings/model")
     def get_model_status(
         _user: AuthUser = Depends(require_admin),  # noqa: B008
     ) -> dict[str, object]:
-        return {"current": get_effective_model_id(), "models": FREE_GROQ_MODELS}
+        return {"current": get_effective_model_id(), "models": AVAILABLE_MODELS}
 
     @app.put("/settings/model")
     def update_model(
         body: ModelUpdate,
         _user: AuthUser = Depends(require_admin),  # noqa: B008
     ) -> dict[str, str]:
-        valid_ids = {m["id"] for m in FREE_GROQ_MODELS}
+        valid_ids = {m["id"] for m in AVAILABLE_MODELS}
         if body.model_id not in valid_ids:
             raise HTTPException(status_code=422, detail="Modèle non reconnu.")
         if not settings.supabase_url or not settings.supabase_service_role_key:

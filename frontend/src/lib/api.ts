@@ -109,6 +109,31 @@ export async function updateGroqKey(apiKey: string): Promise<void> {
   }
 }
 
+export interface OpenRouterKeyStatus {
+  has_key: string;
+  masked: string;
+}
+
+export async function fetchOpenRouterKeyStatus(): Promise<OpenRouterKeyStatus> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/settings/openrouter-key`, { headers });
+  if (!res.ok) throw new Error("Impossible de charger le statut de la clé OpenRouter");
+  return res.json();
+}
+
+export async function updateOpenRouterKey(apiKey: string): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/settings/openrouter-key`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ api_key: apiKey }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la mise à jour");
+  }
+}
+
 export interface ModelStatus {
   current: string;
   models: { id: string; label: string }[];
