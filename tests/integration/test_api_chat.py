@@ -6,6 +6,7 @@ import sqlite3
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -172,3 +173,76 @@ def test_admin_seed_and_monitoring_endpoints(
     assert deleted.json() == {"traces_deleted": True, "supabase_cleaned": False}
     assert status.status_code == 200
     assert status.json()["status"] == "never_run"
+
+
+def test_admin_settings_and_drift_fallback(
+    tmp_path: Path, queue: ApprovalQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(supabase_url="", supabase_service_role_key=None)
+    monkeypatch.setattr(app_mod, "get_settings", lambda: settings)
+    monkeypatch.setattr(app_mod, "get_effective_groq_key", lambda: "abcdefgh1234wxyz")
+    monkeypatch.setattr(app_mod, "get_effective_openrouter_key", lambda: "")
+    monkeypatch.setattr(app_mod, "get_effective_model_id", lambda: "test-model")
+    monkeypatch.setattr(Path, "exists", lambda _path: False)
+
+    app = create_app(db_path=str(tmp_path / "crm.db"), queue=queue)
+    app.dependency_overrides[require_auth] = _stub_auth
+    app.dependency_overrides[require_admin] = _stub_auth
+    client = TestClient(app)
+
+    groq_key = client.get("/settings/groq-key")
+    openrouter_key = client.get("/settings/openrouter-key")
+    model = client.get("/settings/model")
+    groq_update = client.put("/settings/groq-key", json={"api_key": "test-key"})
+    openrouter_update = client.put("/settings/openrouter-key", json={"api_key": "test-key"})
+    invalid_model = client.put("/settings/model", json={"model_id": "unknown-model"})
+    valid_model = client.put(
+        "/settings/model",
+        json={"model_id": app_mod.AVAILABLE_MODELS[0]["id"]},
+    )
+    drift_report = client.get("/report/drift")
+
+    assert groq_key.json() == {"has_key": "true", "masked": "abcdefgh…wxyz", "source": "env"}
+    assert openrouter_key.json() == {"has_key": "false", "masked": ""}
+    assert model.json()["current"] == "test-model"
+    assert groq_update.status_code == 503
+    assert openrouter_update.status_code == 503
+    assert invalid_model.status_code == 422
+    assert valid_model.status_code == 503
+    assert drift_report.status_code == 200
+    assert "Rapport non disponible" in drift_report.text
+
+
+def test_admin_settings_update_with_supabase(
+    tmp_path: Path, queue: ApprovalQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(
+        supabase_url="https://test.supabase.co",
+        supabase_service_role_key="test-service-key",
+    )
+    monkeypatch.setattr(app_mod, "get_settings", lambda: settings)
+    supabase_client = MagicMock()
+    query = supabase_client.table.return_value.select.return_value
+    query.eq.return_value.single.return_value.execute.return_value.data = {"value": "stored-key"}
+
+    import supabase
+
+    monkeypatch.setattr(supabase, "create_client", lambda *_args: supabase_client)
+    app = create_app(db_path=str(tmp_path / "crm.db"), queue=queue)
+    app.dependency_overrides[require_auth] = _stub_auth
+    app.dependency_overrides[require_admin] = _stub_auth
+    client = TestClient(app)
+
+    groq_key = client.get("/settings/groq-key")
+    groq_update = client.put("/settings/groq-key", json={"api_key": "new-groq-key"})
+    openrouter_update = client.put(
+        "/settings/openrouter-key", json={"api_key": "new-openrouter-key"}
+    )
+    model_id = app_mod.AVAILABLE_MODELS[0]["id"]
+    model_update = client.put("/settings/model", json={"model_id": model_id})
+
+    assert groq_key.json()["source"] == "override"
+    assert groq_update.json() == {"status": "updated"}
+    assert openrouter_update.json() == {"status": "updated"}
+    assert model_update.json() == {"status": "updated", "model_id": model_id}
+    assert supabase_client.table.return_value.upsert.call_count == 3
