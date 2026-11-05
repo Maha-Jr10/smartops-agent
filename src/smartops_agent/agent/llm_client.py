@@ -293,7 +293,16 @@ class OpenRouterClient:
                     "HTTP-Referer": "https://smartopsagent.netlify.app",
                 },
             )
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                code = exc.response.status_code
+                if code == 429:
+                    raise RuntimeError(
+                        "Quota OpenRouter épuisé. Réessayez dans quelques minutes "
+                        "ou changez de modèle via /settings/model."
+                    ) from exc
+                raise RuntimeError(f"Erreur HTTP {code} du fournisseur LLM.") from exc
         data = r.json()
         choice = data["choices"][0]
         msg = choice["message"]
