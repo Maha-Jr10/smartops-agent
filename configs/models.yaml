@@ -6,12 +6,12 @@ default: groq-large
 models:
   groq-large:
     provider: groq
-    model_id: llama-3.1-70b-versatile
+    model_id: openai/gpt-oss-120b
     price_input_per_mtok: null
     price_output_per_mtok: null
   groq-small:
     provider: groq
-    model_id: llama-3.1-8b-instant
+    model_id: openai/gpt-oss-20b
     price_input_per_mtok: null
     price_output_per_mtok: null
   local:

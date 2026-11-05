@@ -15,10 +15,10 @@ log = logging.getLogger(__name__)
 
 # Free Groq models available on all plans — shown in the admin settings dropdown.
 FREE_GROQ_MODELS: list[dict[str, str]] = [
-    {"id": "llama-3.1-70b-versatile", "label": "Llama 3.1 70B (recommandé)"},
-    {"id": "llama3-70b-8192", "label": "Llama 3 70B"},
-    {"id": "llama-3.1-8b-instant", "label": "Llama 3.1 8B (rapide)"},
-    {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B"},
+    {"id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B (recommandé)"},
+    {"id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B (rapide)"},
+    {"id": "llama3-70b-8192", "label": "Llama 3 70B (legacy)"},
+    {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B (legacy)"},
 ]
 
 # ---------------------------------------------------------------------------
