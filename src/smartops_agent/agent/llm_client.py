@@ -15,11 +15,11 @@ log = logging.getLogger(__name__)
 
 # Models shown in the admin settings dropdown (OpenRouter free tier).
 AVAILABLE_MODELS: list[dict[str, str]] = [
-    {"id": "meta-llama/llama-3.1-8b-instruct:free", "label": "Llama 3.1 8B (gratuit)"},
-    {"id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (gratuit)"},
-    {"id": "qwen/qwen-2.5-7b-instruct:free", "label": "Qwen 2.5 7B (gratuit)"},
-    {"id": "google/gemma-2-9b-it:free", "label": "Gemma 2 9B (gratuit)"},
-    {"id": "openai/gpt-4o-mini", "label": "GPT-4o Mini (payant)"},
+    {"id": "nvidia/nemotron-3.5-lightning:free", "label": "Nemotron 3.5 Lightning (recommandé)"},
+    {"id": "google/gemma-4-31b-it:free", "label": "Gemma 4 31B"},
+    {"id": "google/gemma-4-26b-a4b-it:free", "label": "Gemma 4 26B"},
+    {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "label": "Nemotron Ultra 550B"},
+    {"id": "xingchen-agi/xing4.0-29b-a4b:free", "label": "Xing 4.0 29B"},
 ]
 
 # Keep alias so existing imports from app.py stay valid.

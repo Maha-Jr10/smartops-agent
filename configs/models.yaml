@@ -6,12 +6,12 @@ default: openrouter-large
 models:
   openrouter-large:
     provider: openrouter
-    model_id: meta-llama/llama-3.1-8b-instruct:free
+    model_id: nvidia/nemotron-3.5-lightning:free
     price_input_per_mtok: null
     price_output_per_mtok: null
   openrouter-small:
     provider: openrouter
-    model_id: meta-llama/llama-3.1-8b-instruct:free
+    model_id: google/gemma-4-31b-it:free
     price_input_per_mtok: null
     price_output_per_mtok: null
   local:
