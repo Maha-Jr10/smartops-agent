@@ -14,6 +14,11 @@ create table if not exists public.profiles (
   created_at    timestamptz not null default now()
 );
 
+-- crm_member_id links this Supabase user to a team member row in the CRM (tm_XXXXXXXX).
+-- Set by an admin after creating the user. Used by the agent loop to enforce per-user
+-- access control on commission calculations without asking "who are you?".
+alter table public.profiles add column if not exists crm_member_id text;
+
 -- 2. Row Level Security
 alter table public.profiles enable row level security;
 

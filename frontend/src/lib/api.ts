@@ -158,3 +158,36 @@ export async function updateModel(modelId: string): Promise<void> {
     throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la mise à jour");
   }
 }
+
+export interface MonitoringStatus {
+  status: "ok" | "drift_detected" | "insufficient_data" | "never_run";
+  last_run?: string;
+  message?: string;
+  drifted_columns?: string[];
+}
+
+export async function fetchMonitoringStatus(): Promise<MonitoringStatus> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/monitoring/status`, { headers });
+  if (!res.ok) throw new Error("Impossible de charger le statut monitoring");
+  return res.json();
+}
+
+export async function seedDemoData(): Promise<{ seeded_traces: number; report: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/admin/seed-data`, { method: "POST", headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as { detail?: string }).detail ?? "Erreur lors de l'injection");
+  }
+  return res.json();
+}
+
+export async function deleteSeedData(): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BASE}/admin/seed-data`, { method: "DELETE", headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la suppression");
+  }
+}

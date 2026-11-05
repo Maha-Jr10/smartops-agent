@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,9 @@ def run_report(
             len(traces),
             _MIN_ROWS,
         )
+        _store_monitoring_alert(
+            drift_detected=False, drifted_columns=[], status="insufficient_data"
+        )
         return False
 
     rows = [_trace_to_row(t) for t in traces]
@@ -118,10 +122,26 @@ def run_report(
         column_mapping=column_mapping,
     )
 
+    # Detect whether drift was found before saving
+    drift_detected = False
+    drifted_cols: list[str] = []
+    try:
+        result_dict = report.as_dict()
+        for m in result_dict.get("metrics", []):
+            r = m.get("result", {})
+            if "dataset_drift" in r:
+                drift_detected = bool(r["dataset_drift"])
+                by_col = r.get("drift_by_columns", {})
+                drifted_cols = [c for c, v in by_col.items() if v.get("drift_detected")]
+                break
+    except Exception:
+        log.debug("Could not parse Evidently drift result", exc_info=True)
+
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report.save_html(str(report_path))
     log.info("Rapport de derive genere : %s", report_path)
     _upload_to_supabase(report_path)
+    _store_monitoring_alert(drift_detected=drift_detected, drifted_columns=drifted_cols)
     return True
 
 
@@ -151,6 +171,46 @@ def _upload_to_supabase(html_path: Path) -> bool:
     except Exception:
         log.warning("Upload Supabase Storage echoue; rapport disponible localement.", exc_info=True)
         return False
+
+
+def _store_monitoring_alert(
+    drift_detected: bool,
+    drifted_columns: list[str],
+    status: str | None = None,
+) -> None:
+    """Persist the latest monitoring result to Supabase app_settings."""
+    effective_status = status or ("drift_detected" if drift_detected else "ok")
+    if effective_status == "drift_detected":
+        message = f"Derive detectee dans : {', '.join(drifted_columns) or 'colonnes inconnues'}."
+    elif effective_status == "insufficient_data":
+        message = "Donnees insuffisantes. Injectez des donnees de demo ou attendez plus de traces."
+    else:
+        message = "Aucune derive significative detectee."
+
+    alert: dict[str, Any] = {
+        "status": effective_status,
+        "last_run": datetime.now(UTC).isoformat(),
+        "drifted_columns": drifted_columns,
+        "message": message,
+    }
+    try:
+        from smartops_agent.config import get_settings
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            return
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        client.table("app_settings").upsert(
+            {"key": "monitoring_alert", "value": json.dumps(alert)}
+        ).execute()
+        log.debug("Monitoring alert stored: %s", effective_status)
+    except Exception:
+        log.debug("Could not store monitoring alert in Supabase", exc_info=True)
 
 
 if __name__ == "__main__":

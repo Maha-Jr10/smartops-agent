@@ -63,24 +63,25 @@ def _jwt_kid(token: str) -> str | None:
 
 # TTL cache for granted roles only — denials and errors are never cached so
 # a pending user who gets promoted gains access within _ROLE_CACHE_TTL seconds.
-_ROLE_CACHE: dict[str, tuple[str, float]] = {}
+# Cache value: (role, crm_member_id, display_name, expires_at)
+_ROLE_CACHE: dict[str, tuple[str, str | None, str, float]] = {}
 _ROLE_CACHE_TTL = 300  # seconds
 
 
-def _fetch_role(user_id: str) -> str:
-    """Fetch role from Supabase profiles table. Fails closed on errors."""
+def _fetch_profile(user_id: str) -> tuple[str, str | None, str]:
+    """Fetch role, crm_member_id, display_name from Supabase profiles. Fails closed."""
     from smartops_agent.config import get_settings
 
     s = get_settings()
     if not s.supabase_url or not s.supabase_service_role_key:
-        return ROLE_COMMERCIAL  # local dev without Supabase configured
+        return ROLE_COMMERCIAL, None, ""  # local dev without Supabase configured
 
     # Serve from cache when fresh (only allowed roles are ever cached)
     cached = _ROLE_CACHE.get(user_id)
     if cached:
-        role, expires_at = cached
+        c_role, c_crm_id, c_display_name, expires_at = cached
         if time.monotonic() < expires_at:
-            return role
+            return c_role, c_crm_id, c_display_name
         _ROLE_CACHE.pop(user_id, None)
 
     # Fetch from Supabase — network/DB errors raise 503 (fail closed, not open)
@@ -91,9 +92,17 @@ def _fetch_role(user_id: str) -> str:
             s.supabase_url,
             s.supabase_service_role_key.get_secret_value(),
         )
-        resp = client.table("profiles").select("role").eq("id", user_id).single().execute()
+        resp = (
+            client.table("profiles")
+            .select("role,crm_member_id,display_name")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
         data = resp.data if isinstance(resp.data, dict) else {}
         raw_role: str = str(data.get("role", "pending"))
+        crm_member_id: str | None = data.get("crm_member_id") or None
+        display_name: str = str(data.get("display_name") or "")
     except Exception as exc:
         log.warning("Role lookup failed for %s: %s", user_id, exc)
         raise HTTPException(
@@ -109,15 +118,29 @@ def _fetch_role(user_id: str) -> str:
         )
 
     # Cache only granted roles, not denials
-    _ROLE_CACHE[user_id] = (raw_role, time.monotonic() + _ROLE_CACHE_TTL)
-    return raw_role
+    _ROLE_CACHE[user_id] = (
+        raw_role,
+        crm_member_id,
+        display_name,
+        time.monotonic() + _ROLE_CACHE_TTL,
+    )
+    return raw_role, crm_member_id, display_name
 
 
 class AuthUser:
-    def __init__(self, user_id: str, email: str, role: str) -> None:
+    def __init__(
+        self,
+        user_id: str,
+        email: str,
+        role: str,
+        crm_member_id: str | None = None,
+        display_name: str = "",
+    ) -> None:
         self.user_id = user_id
         self.email = email
         self.role = role
+        self.crm_member_id = crm_member_id  # CRM team member ID (tm_XXXXXXXX), if linked
+        self.display_name = display_name
 
     @property
     def is_admin(self) -> bool:
@@ -135,7 +158,13 @@ def require_auth(
     # No Supabase: dev/local gets a restricted fallback; anything else is a misconfiguration
     if not settings.supabase_url:
         if settings.app_env in ("dev", "local"):
-            return AuthUser(user_id="local", email="local@dev", role=ROLE_COMMERCIAL)
+            return AuthUser(
+                user_id="local",
+                email="local@dev",
+                role=ROLE_COMMERCIAL,
+                crm_member_id=None,
+                display_name="Dev",
+            )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication not configured. Set SUPABASE_URL.",
@@ -186,8 +215,14 @@ def require_auth(
             detail="Authentication service unavailable.",
         ) from exc
 
-    role = _fetch_role(user_id)
-    return AuthUser(user_id=user_id, email=email, role=role)
+    role, crm_member_id, display_name = _fetch_profile(user_id)
+    return AuthUser(
+        user_id=user_id,
+        email=email,
+        role=role,
+        crm_member_id=crm_member_id,
+        display_name=display_name,
+    )
 
 
 def require_admin(user: AuthUser = Depends(require_auth)) -> AuthUser:  # noqa: B008

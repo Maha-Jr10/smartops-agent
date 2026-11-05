@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchHealth, fetchOpenRouterKeyStatus, updateOpenRouterKey, fetchModelStatus, updateModel, type HealthStatus, type OpenRouterKeyStatus, type ModelStatus } from "@/lib/api";
+import { fetchHealth, fetchOpenRouterKeyStatus, updateOpenRouterKey, fetchModelStatus, updateModel, seedDemoData, deleteSeedData, type HealthStatus, type OpenRouterKeyStatus, type ModelStatus } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import ChatPanel from "@/components/ChatPanel";
 import ApprovalsPanel from "@/components/ApprovalsPanel";
@@ -22,6 +22,8 @@ export default function Home() {
   const [modelSelected, setModelSelected] = useState("");
   const [modelSaving, setModelSaving] = useState(false);
   const [modelMsg, setModelMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [seedLoading, setSeedLoading] = useState<"seed" | "delete" | null>(null);
+  const [seedMsg, setSeedMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const { profile, role, signOut } = useAuth();
   const isAdmin = role === "admin";
 
@@ -52,6 +54,24 @@ export default function Home() {
       setModelMsg({ ok: false, text: err instanceof Error ? err.message : "Erreur inconnue" });
     } finally {
       setModelSaving(false);
+    }
+  }
+
+  async function handleSeedData(action: "seed" | "delete") {
+    setSeedLoading(action);
+    setSeedMsg(null);
+    try {
+      if (action === "seed") {
+        const r = await seedDemoData();
+        setSeedMsg({ ok: true, text: `${r.seeded_traces} traces injectées. Rapport Evidently : ${r.report === "generated" ? "généré" : "dépendances manquantes"}.` });
+      } else {
+        await deleteSeedData();
+        setSeedMsg({ ok: true, text: "Données de démo supprimées." });
+      }
+    } catch (err) {
+      setSeedMsg({ ok: false, text: err instanceof Error ? err.message : "Erreur inconnue" });
+    } finally {
+      setSeedLoading(null);
     }
   }
 
@@ -242,6 +262,30 @@ export default function Home() {
                 <button className="btn-secondary" onClick={() => setShowSettings(false)}>Fermer</button>
                 <button className="btn-primary" onClick={saveOrKey} disabled={!orInput.trim() || orSaving}>
                   {orSaving ? "Enregistrement…" : "Mettre à jour la clé"}
+                </button>
+              </div>
+
+              <hr className="modal-sep" />
+
+              <p className="modal-label">Données de démonstration</p>
+              <p className="modal-status">Injecte des traces fictives pour alimenter le rapport Evidently et les métriques Grafana.</p>
+              {seedMsg && (
+                <p className={`modal-msg ${seedMsg.ok ? "msg-ok" : "msg-err"}`}>{seedMsg.text}</p>
+              )}
+              <div className="modal-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => handleSeedData("delete")}
+                  disabled={seedLoading !== null}
+                >
+                  {seedLoading === "delete" ? "Suppression…" : "Supprimer"}
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => handleSeedData("seed")}
+                  disabled={seedLoading !== null}
+                >
+                  {seedLoading === "seed" ? "Injection…" : "Injecter données démo"}
                 </button>
               </div>
             </div>

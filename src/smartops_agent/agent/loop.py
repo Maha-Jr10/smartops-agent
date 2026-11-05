@@ -40,6 +40,46 @@ def _load_system_prompt(version: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _build_context_block(
+    role: str,
+    user_id: str,
+    crm_member_id: str | None,
+    display_name: str,
+) -> str:
+    name_part = f" — {display_name}" if display_name else ""
+    if crm_member_id:
+        crm_line = (
+            f"- Identifiant CRM (person_id pour les outils) : {crm_member_id}\n"
+            "- Pour calculate_commission sans précision de personne, "
+            f"utilise toujours person_id = {crm_member_id}."
+        )
+    else:
+        crm_line = (
+            "- Identifiant CRM : non configuré. "
+            "Demande à l'administrateur de lier ton compte à un membre de l'équipe."
+        )
+
+    if role == "admin":
+        access_line = (
+            "Accès admin : tu peux consulter les commissions de n'importe quel membre. "
+            "Si la personne n'est pas précisée, demande son identifiant ou son nom."
+        )
+    else:
+        who = crm_member_id or user_id
+        access_line = (
+            f"Accès {role} : tu ne peux consulter que tes propres données. "
+            f"N'utilise jamais un autre person_id que {who}."
+        )
+
+    return (
+        f"## Contexte de session\n"
+        f"Utilisateur : {user_id}{name_part}\n"
+        f"Rôle : {role}\n"
+        f"{crm_line}\n"
+        f"{access_line}\n\n"
+    )
+
+
 def _call_tool(
     name: str,
     args: dict[str, Any],
@@ -85,7 +125,7 @@ class AgentLoop:
         self._db_path = db_path
         self._queue = queue
         self._tracer = tracer
-        self._system = _load_system_prompt(prompt_version)
+        self._system_base = _load_system_prompt(prompt_version)
         self._max_iter = max_iterations
         self._llm_timeout = llm_timeout
         self._tool_timeout = tool_timeout
@@ -99,20 +139,28 @@ class AgentLoop:
         role: str,
         user_id: str,
         history: list[dict[str, Any]] | None = None,
+        crm_member_id: str | None = None,
+        display_name: str = "",
     ) -> tuple[str, list[dict[str, Any]]]:
         """Exécute la boucle pour un message utilisateur.
 
         Returns (answer, updated_history) so callers can persist multi-turn context.
+        crm_member_id: the user's CRM team member ID (tm_XXXXXXXX), if linked.
         """
+        context_block = _build_context_block(role, user_id, crm_member_id, display_name)
+        full_system = context_block + self._system_base
+        # For CRM tool access control: use crm_member_id if available, else Supabase UUID
+        effective_id = crm_member_id if crm_member_id else user_id
+
         if history:
             messages: list[dict[str, Any]] = [
-                {"role": "system", "content": self._system},
+                {"role": "system", "content": full_system},
                 *history,
                 {"role": "user", "content": user_message},
             ]
         else:
             messages = [
-                {"role": "system", "content": self._system},
+                {"role": "system", "content": full_system},
                 {"role": "user", "content": user_message},
             ]
 
@@ -151,7 +199,7 @@ class AgentLoop:
                 t1 = time.monotonic()
                 try:
                     result = _call_tool(
-                        tool_name, tool_args, role, user_id, self._db_path, self._queue
+                        tool_name, tool_args, role, effective_id, self._db_path, self._queue
                     )
                     _tool_label = tool_name if tool_name in _KNOWN_TOOL_NAMES else "unknown"
                     tool_calls_total.labels(tool=_tool_label, status="ok").inc()

@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import json
 import logging
 import time
 from collections import defaultdict
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -157,7 +162,19 @@ def create_app(
         )
         return loop, tracer
 
-    app = FastAPI(title="SmartOps Agent", version=__version__)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+        from smartops_agent.monitoring.scheduler import start_scheduler_task
+
+        task = start_scheduler_task()
+        try:
+            yield
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    app = FastAPI(title="SmartOps Agent", version=__version__, lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -195,6 +212,8 @@ def create_app(
                 role=verified_role,
                 user_id=verified_user_id,
                 history=prior_history,
+                crm_member_id=user.crm_member_id,
+                display_name=user.display_name,
             )
             if session_key:
                 if len(_session_history) >= _MAX_SESSIONS and session_key not in _session_history:
@@ -380,6 +399,68 @@ def create_app(
         if not _drift_report_path.exists():
             return HTMLResponse(_not_found_html, status_code=200)
         return FileResponse(str(_drift_report_path), media_type="text/html")
+
+    # ── Seed data endpoints (admin-only) ────────────────────────────────────
+
+    @app.post("/admin/seed-data")
+    def seed_demo_data(
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, Any]:
+        from smartops_agent.data.seed_traces import seed_traces
+        from smartops_agent.monitoring.report import run_report
+
+        n = seed_traces()
+        ok = run_report()
+        return {"seeded_traces": n, "report": "generated" if ok else "mlops_deps_missing"}
+
+    @app.delete("/admin/seed-data")
+    def delete_demo_data(
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, Any]:
+        from smartops_agent.data.seed_traces import delete_traces
+
+        deleted = delete_traces()
+        sb_cleaned = False
+        if settings.supabase_url and settings.supabase_service_role_key:
+            try:
+                from supabase import create_client
+
+                sb = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key.get_secret_value(),
+                )
+                sb.storage.from_("reports").remove(["monitoring/drift_report.html"])
+                sb_cleaned = True
+            except Exception:
+                log.debug("Could not remove drift report from Supabase Storage", exc_info=True)
+        return {"traces_deleted": deleted, "supabase_cleaned": sb_cleaned}
+
+    # ── Monitoring status ────────────────────────────────────────────────────
+
+    @app.get("/monitoring/status")
+    def monitoring_status(
+        _user: AuthUser = Depends(require_admin),  # noqa: B008
+    ) -> dict[str, Any]:
+        if settings.supabase_url and settings.supabase_service_role_key:
+            try:
+                from supabase import create_client
+
+                sb = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key.get_secret_value(),
+                )
+                resp = (
+                    sb.table("app_settings")
+                    .select("value")
+                    .eq("key", "monitoring_alert")
+                    .single()
+                    .execute()
+                )
+                if isinstance(resp.data, dict) and resp.data.get("value"):
+                    return dict(json.loads(resp.data["value"]))
+            except Exception:
+                log.debug("Could not fetch monitoring alert", exc_info=True)
+        return {"status": "never_run", "message": "Monitoring non encore lancé."}
 
     app.mount("/metrics", make_asgi_app())
     return app
