@@ -1,0 +1,24 @@
+// Grafana Alloy config: scrapes SmartOps /metrics and remote-writes to Grafana Cloud.
+
+prometheus.scrape "smartops_agent" {
+  targets = [{
+    __address__ = "smartops-agent-production.up.railway.app",
+  }]
+
+  scheme          = "https"
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_PROM_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_PROM_USERNAME")
+      password = sys.env("GRAFANA_PROM_PASSWORD")
+    }
+  }
+}
