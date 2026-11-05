@@ -15,10 +15,11 @@ log = logging.getLogger(__name__)
 
 # Models shown in the admin settings dropdown.
 # Groq models (generous free tier: 14 400 req/day) are listed first.
+# llama-3.1-8b-instant and gemma2-9b-it are available on the Groq free tier.
 AVAILABLE_MODELS: list[dict[str, str]] = [
-    {"id": "groq:llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq — recommandé)"},
-    {"id": "groq:llama-3.1-8b-instant", "label": "Llama 3.1 8B (Groq — rapide)"},
-    {"id": "groq:gemma2-9b-it", "label": "Gemma 2 9B (Groq)"},
+    {"id": "groq:llama-3.1-8b-instant", "label": "Llama 3.1 8B (Groq — recommandé, gratuit)"},
+    {"id": "groq:gemma2-9b-it", "label": "Gemma 2 9B (Groq — gratuit)"},
+    {"id": "groq:llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq — plan payant)"},
     {"id": "nvidia/nemotron-3.5-lightning:free", "label": "Nemotron 3.5 Lightning (OpenRouter)"},
     {"id": "google/gemma-4-31b-it:free", "label": "Gemma 4 31B (OpenRouter)"},
 ]
