@@ -101,8 +101,13 @@ def _fetch_model_id() -> str:
             )
             if isinstance(resp.data, dict):
                 val = resp.data.get("value", "")
-                if val:
+                valid_ids = {m["id"] for m in FREE_GROQ_MODELS}
+                if val and val in valid_ids:
                     return str(val)
+                if val:
+                    log.warning(
+                        "Stored model_id %r not in FREE_GROQ_MODELS; using config default", val
+                    )
         except Exception:
             log.debug("Could not fetch active_model_id from Supabase", exc_info=True)
     from smartops_agent.config import load_config
