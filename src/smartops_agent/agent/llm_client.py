@@ -13,13 +13,14 @@ from smartops_agent.config import get_settings
 
 log = logging.getLogger(__name__)
 
-# Models shown in the admin settings dropdown (OpenRouter free tier).
+# Models shown in the admin settings dropdown.
+# Groq models (generous free tier: 14 400 req/day) are listed first.
 AVAILABLE_MODELS: list[dict[str, str]] = [
-    {"id": "nvidia/nemotron-3.5-lightning:free", "label": "Nemotron 3.5 Lightning (recommandé)"},
-    {"id": "google/gemma-4-31b-it:free", "label": "Gemma 4 31B"},
-    {"id": "google/gemma-4-26b-a4b-it:free", "label": "Gemma 4 26B"},
-    {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "label": "Nemotron Ultra 550B"},
-    {"id": "xingchen-agi/xing4.0-29b-a4b:free", "label": "Xing 4.0 29B"},
+    {"id": "groq:llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq — recommandé)"},
+    {"id": "groq:llama-3.1-8b-instant", "label": "Llama 3.1 8B (Groq — rapide)"},
+    {"id": "groq:gemma2-9b-it", "label": "Gemma 2 9B (Groq)"},
+    {"id": "nvidia/nemotron-3.5-lightning:free", "label": "Nemotron 3.5 Lightning (OpenRouter)"},
+    {"id": "google/gemma-4-31b-it:free", "label": "Gemma 4 31B (OpenRouter)"},
 ]
 
 # Keep alias so existing imports from app.py stay valid.
@@ -368,10 +369,16 @@ class OllamaClient:
 def build_llm_client(provider: str, model_id: str) -> LLMClient:
     settings = get_settings()
     effective_model = get_effective_model_id()
-    if provider == "openrouter":
-        return OpenRouterClient(model_id=effective_model, api_key=get_effective_openrouter_key())
+    # groq: prefix in the stored model ID overrides the YAML provider field
+    if effective_model.startswith("groq:"):
+        return GroqClient(
+            model_id=effective_model[len("groq:") :],
+            api_key=get_effective_groq_key(),
+        )
     if provider == "groq":
         return GroqClient(model_id=effective_model, api_key=get_effective_groq_key())
+    if provider == "openrouter":
+        return OpenRouterClient(model_id=effective_model, api_key=get_effective_openrouter_key())
     if provider == "ollama":
         return OllamaClient(model_id=model_id, base_url=settings.ollama_base_url)
     raise ValueError(f"Fournisseur LLM inconnu : {provider}")
