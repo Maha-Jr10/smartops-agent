@@ -273,6 +273,8 @@ class OpenRouterClient:
         temperature: float = 0.0,
         timeout: float = 30.0,
     ) -> LLMResponse:
+        if not self._api_key:
+            raise ValueError("OPENROUTER_API_KEY n'est pas configuré.")
         payload: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
