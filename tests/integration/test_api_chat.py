@@ -14,6 +14,7 @@ import smartops_agent.api.app as app_mod
 from smartops_agent.agent.llm_client import LLMResponse
 from smartops_agent.api.app import create_app
 from smartops_agent.api.auth import AuthUser, require_admin, require_auth
+from smartops_agent.config import Settings
 from smartops_agent.guardrails.approval_queue import ApprovalQueue
 
 pytestmark = pytest.mark.integration
@@ -142,3 +143,32 @@ def test_rate_limit_triggers_429(
     client = TestClient(app)
     resp = client.post("/chat", json={"message": "hi", "role": "commercial", "user_id": "u1"})
     assert resp.status_code == 429
+
+
+def test_admin_seed_and_monitoring_endpoints(
+    tmp_path: Path, queue: ApprovalQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(supabase_url="", supabase_service_role_key=None)
+    monkeypatch.setattr(app_mod, "get_settings", lambda: settings)
+    app = create_app(db_path=str(tmp_path / "crm.db"), queue=queue)
+    app.dependency_overrides[require_auth] = _stub_auth
+    app.dependency_overrides[require_admin] = _stub_auth
+
+    import smartops_agent.data.seed_traces as seed_mod
+    import smartops_agent.monitoring.report as report_mod
+
+    monkeypatch.setattr(seed_mod, "seed_traces", lambda: 160)
+    monkeypatch.setattr(report_mod, "run_report", lambda: True)
+    monkeypatch.setattr(seed_mod, "delete_traces", lambda: True)
+
+    client = TestClient(app)
+    seeded = client.post("/admin/seed-data")
+    deleted = client.delete("/admin/seed-data")
+    status = client.get("/monitoring/status")
+
+    assert seeded.status_code == 200
+    assert seeded.json() == {"seeded_traces": 160, "report": "generated"}
+    assert deleted.status_code == 200
+    assert deleted.json() == {"traces_deleted": True, "supabase_cleaned": False}
+    assert status.status_code == 200
+    assert status.json()["status"] == "never_run"
