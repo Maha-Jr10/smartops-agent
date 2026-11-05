@@ -28,12 +28,23 @@ create policy "users_read_own_profile"
   on public.profiles for select
   using (auth.uid() = id);
 
--- Users can update their own display_name only (not role)
+-- Users can update their own display_name only (not role, not crm_member_id).
+-- Column-level grants restrict the writable columns; the policy gates the row.
+-- crm_member_id is intentionally excluded: only the service role (backend/admin) may set it.
 drop policy if exists "users_update_own_display_name" on public.profiles;
 create policy "users_update_own_display_name"
   on public.profiles for update
   using (auth.uid() = id)
-  with check (role = (select role from public.profiles where id = auth.uid()));
+  with check (
+    role = (select role from public.profiles where id = auth.uid())
+    and crm_member_id is not distinct from (select crm_member_id from public.profiles where id = auth.uid())
+  );
+
+-- Revoke broad UPDATE from authenticated users and grant only display_name.
+-- This prevents any client from touching role or crm_member_id even if the policy above
+-- were misconfigured. The backend uses service_role_key which bypasses these grants.
+revoke update on public.profiles from authenticated;
+grant update (display_name) on public.profiles to authenticated;
 
 -- Admins can read all profiles (needed by backend service role, not enforced here)
 -- The backend uses service_role_key which bypasses RLS.
