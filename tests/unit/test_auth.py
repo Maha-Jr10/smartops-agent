@@ -16,7 +16,7 @@ from smartops_agent.api.auth import (
     ROLE_ADMIN,
     ROLE_COMMERCIAL,
     AuthUser,
-    _fetch_role,
+    _fetch_profile,
     _get_jwt_secret,
     _jwt_alg,
     _jwt_kid,
@@ -115,7 +115,7 @@ class TestGetJwtSecret:
 
 
 # ---------------------------------------------------------------------------
-# _fetch_role
+# _fetch_profile
 # ---------------------------------------------------------------------------
 
 
@@ -123,31 +123,36 @@ class TestFetchRole:
     def test_local_dev_no_supabase_returns_commercial(self) -> None:
         s = _mock_settings(supabase_url="")
         with patch("smartops_agent.config.get_settings", return_value=s):
-            assert _fetch_role("any-user-id") == ROLE_COMMERCIAL
+            role, crm_id, display_name = _fetch_profile("any-user-id")
+        assert role == ROLE_COMMERCIAL
+        assert crm_id is None
+        assert display_name == ""
 
     def test_cache_hit_returns_cached_role(self) -> None:
-        _ROLE_CACHE["cached-user-99"] = (ROLE_ADMIN, time.monotonic() + 300)
+        # Cache is now a 4-tuple: (role, crm_member_id, display_name, expires_at)
+        _ROLE_CACHE["cached-user-99"] = (ROLE_ADMIN, "tm_001", "Alice", time.monotonic() + 300)
         s = _mock_settings(
             supabase_url="https://x.supabase.co",
             supabase_service_role_key=_mock_service_key(),
         )
         try:
             with patch("smartops_agent.config.get_settings", return_value=s):
-                assert _fetch_role("cached-user-99") == ROLE_ADMIN
+                role, crm_id, display_name = _fetch_profile("cached-user-99")
+            assert role == ROLE_ADMIN
+            assert crm_id == "tm_001"
+            assert display_name == "Alice"
         finally:
             _ROLE_CACHE.pop("cached-user-99", None)
 
     def test_expired_cache_entry_evicted_before_lookup(self) -> None:
-        _ROLE_CACHE["expired-user"] = (ROLE_ADMIN, time.monotonic() - 1)
+        _ROLE_CACHE["expired-user"] = (ROLE_ADMIN, "tm_002", "Bob", time.monotonic() - 1)
         # Use empty supabase_url so the function hits local-dev path after eviction
-        # We verify the stale entry is NOT returned (eviction happens, then local fallback)
         s = _mock_settings(supabase_url="")
         try:
             with patch("smartops_agent.config.get_settings", return_value=s):
-                # supabase_url is empty → returns COMMERCIAL early (before cache check),
-                # so we just verify the stale ADMIN value is not served
-                result = _fetch_role("expired-user")
-            assert result == ROLE_COMMERCIAL
+                role, crm_id, _ = _fetch_profile("expired-user")
+            assert role == ROLE_COMMERCIAL  # stale ADMIN not served
+            assert crm_id is None
         finally:
             _ROLE_CACHE.pop("expired-user", None)
 
