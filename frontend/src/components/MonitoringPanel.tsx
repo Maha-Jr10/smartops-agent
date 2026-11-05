@@ -67,7 +67,8 @@ export default function MonitoringPanel() {
         {TABS.map(t => (
           <div
             key={t.id}
-            className={`mon-placeholder ${active === t.id ? "mon-iframe-visible" : "mon-iframe-hidden"}`}
+            className="mon-placeholder"
+            style={{ display: active === t.id ? "flex" : "none" }}
           >
             <div className="mon-placeholder-inner">
               <div className="mon-placeholder-icon" style={{ color: TAB_COLOR[t.id] }}>
