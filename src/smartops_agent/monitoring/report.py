@@ -117,7 +117,36 @@ def run_report(
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report.save_html(str(report_path))
     log.info("Rapport de derive genere : %s", report_path)
+    _upload_to_supabase(report_path)
     return True
+
+
+def _upload_to_supabase(html_path: Path) -> bool:
+    """Upload the HTML report to Supabase Storage bucket 'reports'."""
+    try:
+        from smartops_agent.config import get_settings
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            return False
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        with html_path.open("rb") as fh:
+            content = fh.read()
+        client.storage.from_("reports").upload(
+            "monitoring/drift_report.html",
+            content,
+            {"contentType": "text/html", "upsert": True},  # type: ignore[arg-type]
+        )
+        log.info("Rapport uploade dans Supabase Storage : reports/monitoring/drift_report.html")
+        return True
+    except Exception:
+        log.warning("Upload Supabase Storage echoue; rapport disponible localement.", exc_info=True)
+        return False
 
 
 if __name__ == "__main__":

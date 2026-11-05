@@ -348,17 +348,37 @@ def create_app(
         return {"status": "updated", "model_id": body.model_id}
 
     _drift_report_path = Path("reports/monitoring/drift_report.html")
+    _drift_bucket = "reports"
+    _drift_object = "monitoring/drift_report.html"
+    _not_found_html = (
+        "<html><body style='font-family:sans-serif;padding:40px'>"
+        "<h2>Rapport non disponible</h2>"
+        "<p>Lancez <code>make monitor</code> pour générer le rapport Evidently.</p>"
+        "</body></html>"
+    )
 
     @app.get("/report/drift", response_model=None)
     def drift_report(_user: AuthUser = Depends(require_admin)) -> FileResponse | HTMLResponse:  # noqa: B008
+        # Supabase Storage takes priority (works in production without a local disk).
+        if settings.supabase_url and settings.supabase_service_role_key:
+            try:
+                from supabase import create_client
+
+                sb = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key.get_secret_value(),
+                )
+                data: bytes = sb.storage.from_(_drift_bucket).download(_drift_object)
+                if data:
+                    return HTMLResponse(content=data.decode("utf-8"), status_code=200)
+            except Exception:
+                log.debug(
+                    "Supabase Storage indisponible pour drift report; fallback disque",
+                    exc_info=True,
+                )
+        # Fallback: local file (dev / CI).
         if not _drift_report_path.exists():
-            return HTMLResponse(
-                "<html><body style='font-family:sans-serif;padding:40px'>"
-                "<h2>Rapport non disponible</h2>"
-                "<p>Lancez <code>make monitor</code> pour générer le rapport Evidently.</p>"
-                "</body></html>",
-                status_code=200,
-            )
+            return HTMLResponse(_not_found_html, status_code=200)
         return FileResponse(str(_drift_report_path), media_type="text/html")
 
     app.mount("/metrics", make_asgi_app())
