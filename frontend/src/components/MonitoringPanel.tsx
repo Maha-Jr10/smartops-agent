@@ -62,16 +62,31 @@ export default function MonitoringPanel() {
       {/* Hint */}
       <div className="mon-hint">{tab.hint}</div>
 
-      {/* iframes — one per service, shown/hidden to preserve state */}
+      {/* Placeholder — external services block iframe embedding (X-Frame-Options: SAMEORIGIN) */}
       <div className="mon-frames">
         {TABS.map(t => (
-          <iframe
+          <div
             key={t.id}
-            src={t.url}
-            className={`mon-iframe ${active === t.id ? "mon-iframe-visible" : "mon-iframe-hidden"}`}
-            title={t.label}
-            allow="fullscreen"
-          />
+            className={`mon-placeholder ${active === t.id ? "mon-iframe-visible" : "mon-iframe-hidden"}`}
+          >
+            <div className="mon-placeholder-inner">
+              <div className="mon-placeholder-icon" style={{ color: TAB_COLOR[t.id] }}>
+                <IconExternalLink size={32} />
+              </div>
+              <p className="mon-placeholder-title">{t.label}</p>
+              <p className="mon-placeholder-desc">{t.hint}</p>
+              <a
+                href={t.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mon-placeholder-btn"
+                style={{ background: TAB_COLOR[t.id] }}
+              >
+                <IconExternalLink size={14} />
+                Ouvrir {t.label}
+              </a>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -161,6 +176,51 @@ export default function MonitoringPanel() {
         }
         .mon-iframe-visible { display: block; }
         .mon-iframe-hidden  { display: none; }
+
+        /* ── Placeholder (services block iframe embedding) ── */
+        .mon-placeholder {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-page);
+        }
+        .mon-placeholder-inner {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          text-align: center;
+          padding: 32px;
+          max-width: 360px;
+        }
+        .mon-placeholder-icon { opacity: 0.7; }
+        .mon-placeholder-title {
+          font-size: 17px;
+          font-weight: 600;
+          color: var(--fg-primary);
+          margin: 0;
+        }
+        .mon-placeholder-desc {
+          font-size: 13px;
+          color: var(--fg-muted);
+          margin: 0;
+        }
+        .mon-placeholder-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          margin-top: 8px;
+          padding: 10px 20px;
+          border-radius: 8px;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 500;
+          text-decoration: none;
+          transition: opacity 0.15s;
+        }
+        .mon-placeholder-btn:hover { opacity: 0.85; }
       `}</style>
     </div>
   );
@@ -172,9 +232,9 @@ const TAB_COLOR: Record<MonTab, string> = {
   evidently: "#7c3aed",
 };
 
-function IconExternalLink() {
+function IconExternalLink({ size = 12 }: { size?: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
       <polyline points="15 3 21 3 21 9"/>
       <line x1="10" y1="14" x2="21" y2="3"/>
