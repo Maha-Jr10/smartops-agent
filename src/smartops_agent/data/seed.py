@@ -77,31 +77,36 @@ def _det_id(prefix: str, index: int) -> str:
     return f"{prefix}_{h}"
 
 
-_FULL_NAMES = [
-    "Amiri Abdelhadi",
-    "Bahtaoui Abderrahmane",
+# (name, role) — fixed team, deterministic IDs
+_TEAM_MEMBERS = [
+    ("Amiri Abdelhadi", "commercial"),
+    ("El Haouari Abdelhafid", "commercial"),
+    ("Majdoub Mohamed Aymane", "commercial"),
+    ("Nadir Hatim", "delivery"),
+    ("Ez Zahy Mouhssin", "delivery"),
+    ("Bihkak Asmae", "admin"),
+]
+
+# remaining classmates used as client names
+_CLIENT_NAMES = [
     "Atmani Maroua",
     "Ayegou Chaymae",
+    "Bahtaoui Abderrahmane",
     "Benjarnij Nazha",
     "Bensaid Rim",
     "Berrahioui Hajar",
-    "Bihkak Asmae",
     "Boujnoun Nisrine",
     "Chaibi Douae",
-    "El Khadiri Farah",
     "Chebiha Fatima Zahrae",
     "Chkhichkh Khadija",
     "El Bardi Salma",
-    "El Haouari Abdelhafid",
+    "El Khadiri Farah",
     "El Mrabet Maroua",
     "El Mustad Meryem",
     "En-Nasiri Mohamed",
-    "Ez Zahy Mouhssin",
     "Ibnyassine Aya",
     "Kellouai Nada",
-    "Majdoub Mohamed Aymane",
     "Mohtarim Aicha",
-    "Nadir Hatim",
     "Skouf Doha",
     "Zahraoui Ismail",
 ]
@@ -120,7 +125,7 @@ _PROJECT_NAMES = [
 
 
 def _name(rng: random.Random) -> str:
-    return rng.choice(_FULL_NAMES)
+    return rng.choice(_CLIENT_NAMES)
 
 
 def _email(name: str, domain: str = "example.com") -> str:
@@ -146,14 +151,10 @@ def seed_database(db_path: Path, params: SeedParams | None = None) -> None:
     con.executescript(SCHEMA)
 
     # --- équipe ---
-    roles = ["commercial", "commercial", "commercial", "delivery", "delivery", "admin"]
     team: list[dict[str, Any]] = []
-    for i in range(6):
+    for i, (n, role) in enumerate(_TEAM_MEMBERS):
         mid = _det_id("tm", i)
-        n = _name(rng)
-        team.append(
-            {"id": mid, "name": n, "email": _email(n, "smartara.example"), "role": roles[i]}
-        )
+        team.append({"id": mid, "name": n, "email": _email(n, "smartara.example"), "role": role})
     con.executemany("INSERT INTO team_members VALUES (:id,:name,:email,:role)", team)
 
     # --- clients (avec piège : deux noms très proches) ---
