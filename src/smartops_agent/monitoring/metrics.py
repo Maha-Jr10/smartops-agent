@@ -13,7 +13,7 @@ chat_requests_total = Counter(
 chat_latency_seconds = Histogram(
     "smartops_chat_latency_seconds",
     "Latence de bout en bout des requêtes /chat (secondes)",
-    buckets=[0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0],
+    buckets=[0.1, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0],
 )
 
 tool_calls_total = Counter(
