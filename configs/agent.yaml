@@ -1,6 +1,6 @@
 # Paramètres de la boucle d'agent. Chaque run d'évaluation enregistre ce fichier dans MLflow.
 agent:
-  prompt_version: v4
+  prompt_version: v5
   temperature: 0.0
   max_iterations: 6            # au-delà : arrêt propre et escalade vers un humain
   llm_timeout_s: 20
