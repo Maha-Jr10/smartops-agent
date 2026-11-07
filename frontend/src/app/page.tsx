@@ -527,7 +527,14 @@ export default function Home() {
         @media (max-width: 639px) {
           .desktop-only { display: none; }
           .mobile-only  { display: flex; }
-          .header-status { margin-left: auto; }
+          /* Slim the header down — hide verbose text, keep icons */
+          .brand-sub  { display: none; }
+          .user-name  { display: none; }
+          .status-env { display: none; }
+          .header-status { margin-left: auto; gap: 4px; }
+          .app-header { gap: 10px; }
+          /* Smaller bottom-nav labels so 3 tabs fit */
+          .mobile-tab { font-size: 10px; padding: 8px 0; gap: 2px; }
         }
       `}</style>
     </div>

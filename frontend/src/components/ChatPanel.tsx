@@ -123,7 +123,7 @@ export default function ChatPanel() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Écrivez votre message… (Entrée pour envoyer)"
+            placeholder="Votre message…"
             rows={1}
             disabled={loading}
             maxLength={1000}
@@ -231,6 +231,8 @@ export default function ChatPanel() {
           gap: 8px;
           justify-content: center;
           margin-top: 8px;
+          width: 100%;
+          max-width: 400px;
         }
         .suggestion-chip {
           padding: 7px 14px;
@@ -241,12 +243,16 @@ export default function ChatPanel() {
           color: var(--fg-secondary);
           cursor: pointer;
           transition: all 0.15s;
-          text-align: left;
+          text-align: center;
         }
         .suggestion-chip:hover {
           border-color: var(--accent);
           color: var(--accent);
           background: var(--accent-subtle);
+        }
+        @media (max-width: 480px) {
+          .suggestions { flex-direction: column; align-items: stretch; max-width: 100%; }
+          .suggestion-chip { width: 100%; }
         }
 
         /* ── Messages list ──────────────────────────────── */
