@@ -82,6 +82,7 @@ _TEAM_MEMBERS = [
     ("Amiri Abdelhadi", "commercial"),
     ("El Haouari Abdelhafid", "commercial"),
     ("Majdoub Mohamed Aymane", "commercial"),
+    ("Japhet Allah-n'diguim", "commercial"),
     ("Nadir Hatim", "delivery"),
     ("Ez Zahy Mouhssin", "delivery"),
     ("Bihkak Asmae", "admin"),
