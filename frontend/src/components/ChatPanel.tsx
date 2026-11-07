@@ -4,10 +4,10 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 
 import { sendChat, type ChatMessage } from "@/lib/api";
 
 const SUGGESTIONS = [
-  "Cherche le client Diallo",
-  "Quel est le statut de la facture INV-2024-001 ?",
-  "Calcule la commission pour le projet PR-0001",
-  "Prépare une relance pour les factures en retard",
+  "Bonjour, que peux-tu faire pour moi ?",
+  "Liste les clients actifs",
+  "Quels projets sont actuellement en cours ?",
+  "Montre-moi les leads en attente de contact",
 ];
 
 let idCounter = 0;
