@@ -151,7 +151,15 @@ def test_run_report_too_few_traces(tmp_path: Path) -> None:
     traces = tmp_path / "traces.jsonl"
     report = tmp_path / "report.html"
     _make_traces_file(traces, 5)
-    with patch("smartops_agent.monitoring.report._store_monitoring_alert") as store_alert:
+    # pandas/evidently not installed in CI's dev group — mock them so the
+    # import block succeeds and the function reaches the too-few-traces check.
+    mocks = _mock_evidently_modules()
+    mocks.pop("_mock_report_instance")
+    sys_mods = {**mocks, "pandas": _mock_pandas_module()}
+    with (
+        patch.dict("sys.modules", sys_mods),
+        patch("smartops_agent.monitoring.report._store_monitoring_alert") as store_alert,
+    ):
         result = run_report(traces_path=traces, report_path=report)
 
     assert result is False
