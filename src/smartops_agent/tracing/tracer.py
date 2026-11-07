@@ -18,6 +18,7 @@ from typing import Any
 
 import structlog
 
+from smartops_agent.config import get_settings
 from smartops_agent.guardrails.pii import mask_pii_in_dict
 
 log = structlog.get_logger()
@@ -96,6 +97,8 @@ class Tracer:
 
     def _log_to_mlflow(self) -> None:
         try:
+            mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
+            mlflow.set_experiment("smartops-agent-monitoring")
             with mlflow.start_span(name="agent_run") as span:
                 span.set_inputs({"user_message": self._data.get("user_message", "")})
                 span.set_outputs({"answer": self._data.get("answer", "")})
@@ -103,8 +106,8 @@ class Tracer:
                 span.set_attribute("iterations", self._data.get("iterations", 0))
                 span.set_attribute("escalated", self._data.get("escalated", False))
                 span.set_attribute("prompt_version", self._data.get("prompt_version", ""))
-        except Exception:
-            log.debug("mlflow_span_failed")  # MLflow optional
+        except Exception as exc:
+            log.warning("mlflow_span_failed", error_type=type(exc).__name__)
 
 
 class NullTracer(Tracer):

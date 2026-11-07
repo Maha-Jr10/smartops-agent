@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -67,3 +68,23 @@ def test_tracer_escalated_flag(tmp_path: Path) -> None:
     t.finish(answer="escaladé", iterations=6, escalated=True)
     data = json.loads((tmp_path / "traces.jsonl").read_text(encoding="utf-8").strip())
     assert data["escalated"] is True
+
+
+def test_tracer_uses_configured_mlflow_tracking_uri(tmp_path: Path) -> None:
+    from smartops_agent.tracing import tracer
+
+    mock_mlflow = MagicMock()
+    mock_settings = MagicMock(mlflow_tracking_uri="https://dagshub.example/project.mlflow")
+    trace = Tracer(trace_dir=tmp_path)
+    trace.start(user_message="test", role="commercial", user_id="u1")
+    trace._data["answer"] = "ok"
+
+    with (
+        patch.object(tracer, "mlflow", mock_mlflow, create=True),
+        patch.object(tracer, "_MLFLOW_AVAILABLE", True),
+        patch("smartops_agent.tracing.tracer.get_settings", return_value=mock_settings),
+    ):
+        trace._log_to_mlflow()
+
+    mock_mlflow.set_tracking_uri.assert_called_once_with(mock_settings.mlflow_tracking_uri)
+    mock_mlflow.set_experiment.assert_called_once_with("smartops-agent-monitoring")

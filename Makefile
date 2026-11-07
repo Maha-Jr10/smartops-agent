@@ -67,7 +67,7 @@ serve-ui: ## Lance le frontend Next.js (port 3001)
 > cd frontend && npm run dev
 
 mlflow-ui: ## Ouvre l'interface MLflow
-> $(UV) mlflow ui --backend-store-uri ./mlruns --port 5000
+> $(UV) mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
 
 monitor: ## Génère le rapport Evidently sur les traces
 > $(UV) python -m smartops_agent.monitoring.report

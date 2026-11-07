@@ -140,9 +140,57 @@ def run_report(
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report.save_html(str(report_path))
     log.info("Rapport de derive genere : %s", report_path)
+    _log_to_mlflow(
+        report_path=report_path,
+        trace_count=len(traces),
+        reference_count=len(reference),
+        current_count=len(current),
+        drift_detected=drift_detected,
+        drifted_columns=drifted_cols,
+    )
     _upload_to_supabase(report_path)
     _store_monitoring_alert(drift_detected=drift_detected, drifted_columns=drifted_cols)
     return True
+
+
+def _log_to_mlflow(
+    report_path: Path,
+    trace_count: int,
+    reference_count: int,
+    current_count: int,
+    drift_detected: bool,
+    drifted_columns: list[str],
+) -> None:
+    """Log the generated drift report and summary metrics to MLflow."""
+    try:
+        import mlflow
+    except ImportError as exc:
+        log.warning("MLflow manquant; rapport non journalise dans MLflow : %s", exc)
+        return
+
+    try:
+        from smartops_agent.config import get_settings
+
+        mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
+        mlflow.set_experiment("smartops-agent-monitoring")
+        with mlflow.start_run(run_name="evidently-drift-report"):
+            mlflow.log_params(
+                {
+                    "trace_count": trace_count,
+                    "reference_count": reference_count,
+                    "current_count": current_count,
+                    "drifted_columns": ", ".join(drifted_columns) or "none",
+                }
+            )
+            mlflow.log_metrics(
+                {
+                    "drift_detected": float(drift_detected),
+                    "drifted_column_count": len(drifted_columns),
+                }
+            )
+            mlflow.log_artifact(str(report_path), artifact_path="evidently")
+    except Exception:
+        log.exception("Echec de la journalisation du rapport Evidently dans MLflow")
 
 
 def _upload_to_supabase(html_path: Path) -> bool:
@@ -164,7 +212,7 @@ def _upload_to_supabase(html_path: Path) -> bool:
         client.storage.from_("reports").upload(
             "monitoring/drift_report.html",
             content,
-            {"contentType": "text/html", "upsert": True},  # type: ignore[arg-type]
+            {"contentType": "text/html", "upsert": "true"},  # type: ignore[arg-type]
         )
         log.info("Rapport uploade dans Supabase Storage : reports/monitoring/drift_report.html")
         return True

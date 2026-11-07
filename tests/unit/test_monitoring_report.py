@@ -10,6 +10,7 @@ import pytest
 
 from smartops_agent.monitoring.report import (
     _load_traces,
+    _log_to_mlflow,
     _trace_to_row,
     _upload_to_supabase,
     run_report,
@@ -150,9 +151,16 @@ def test_run_report_too_few_traces(tmp_path: Path) -> None:
     traces = tmp_path / "traces.jsonl"
     report = tmp_path / "report.html"
     _make_traces_file(traces, 5)
-    result = run_report(traces_path=traces, report_path=report)
+    with patch("smartops_agent.monitoring.report._store_monitoring_alert") as store_alert:
+        result = run_report(traces_path=traces, report_path=report)
+
     assert result is False
     assert not report.exists()
+    store_alert.assert_called_once_with(
+        drift_detected=False,
+        drifted_columns=[],
+        status="insufficient_data",
+    )
 
 
 def _mock_evidently_modules() -> dict[str, MagicMock]:
@@ -199,16 +207,20 @@ def test_run_report_success(tmp_path: Path) -> None:
 
     mocks = _mock_evidently_modules()
     mock_report_instance = mocks.pop("_mock_report_instance")
-    sys_mods = {**mocks, "pandas": _mock_pandas_module()}
+    mock_mlflow = MagicMock()
+    sys_mods = {**mocks, "pandas": _mock_pandas_module(), "mlflow": mock_mlflow}
 
     with (
         patch.dict("sys.modules", sys_mods),
         patch("smartops_agent.monitoring.report._upload_to_supabase", return_value=False),
+        patch("smartops_agent.monitoring.report._store_monitoring_alert") as store_alert,
     ):
         result = run_report(traces_path=traces, report_path=report)
 
     assert result is True
     mock_report_instance.save_html.assert_called_once()
+    mock_mlflow.log_artifact.assert_called_once_with(str(report), artifact_path="evidently")
+    store_alert.assert_called_once()
 
 
 def test_run_report_missing_evidently_returns_false(tmp_path: Path) -> None:
@@ -224,6 +236,47 @@ def test_run_report_missing_evidently_returns_false(tmp_path: Path) -> None:
         result = run_report(traces_path=traces, report_path=report)
 
     assert result is False
+
+
+# ---------------------------------------------------------------------------
+# _log_to_mlflow
+# ---------------------------------------------------------------------------
+
+
+def test_log_to_mlflow_records_report_and_metrics(tmp_path: Path) -> None:
+    report = tmp_path / "report.html"
+    report.write_text("<html/>", encoding="utf-8")
+    mock_mlflow = MagicMock()
+    mock_settings = MagicMock()
+    mock_settings.mlflow_tracking_uri = "sqlite:///test.db"
+
+    with (
+        patch.dict("sys.modules", {"mlflow": mock_mlflow}),
+        patch("smartops_agent.config.get_settings", return_value=mock_settings),
+    ):
+        _log_to_mlflow(
+            report_path=report,
+            trace_count=20,
+            reference_count=10,
+            current_count=10,
+            drift_detected=True,
+            drifted_columns=["answer_length"],
+        )
+
+    mock_mlflow.set_tracking_uri.assert_called_once_with("sqlite:///test.db")
+    mock_mlflow.set_experiment.assert_called_once_with("smartops-agent-monitoring")
+    mock_mlflow.log_params.assert_called_once_with(
+        {
+            "trace_count": 20,
+            "reference_count": 10,
+            "current_count": 10,
+            "drifted_columns": "answer_length",
+        }
+    )
+    mock_mlflow.log_metrics.assert_called_once_with(
+        {"drift_detected": 1.0, "drifted_column_count": 1}
+    )
+    mock_mlflow.log_artifact.assert_called_once_with(str(report), artifact_path="evidently")
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +318,11 @@ def test_upload_to_supabase_success(tmp_path: Path) -> None:
 
     assert result is True
     mock_client.storage.from_.assert_called_once_with("reports")
+    mock_client.storage.from_.return_value.upload.assert_called_once()
+    assert mock_client.storage.from_.return_value.upload.call_args.args[2] == {
+        "contentType": "text/html",
+        "upsert": "true",
+    }
 
 
 def test_upload_to_supabase_exception_returns_false(tmp_path: Path) -> None:
