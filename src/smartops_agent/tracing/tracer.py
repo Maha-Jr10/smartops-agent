@@ -100,7 +100,19 @@ class Tracer:
             mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
             mlflow.set_experiment("smartops-agent-monitoring")
             # nested=False: each chat turn is an independent top-level run on remote trackers
-            with mlflow.start_run(run_name="agent_run", nested=False):
+            tool_calls = [s for s in self._data.get("steps", []) if s.get("type") == "tool_call"]
+            tools_used = ",".join(dict.fromkeys(s["tool"] for s in tool_calls)) or "none"
+            run_name = f"agent_run [{self._data.get('role', '?')}]"
+            with mlflow.start_run(run_name=run_name, nested=False):
+                mlflow.set_tags(
+                    {
+                        "role": self._data.get("role", ""),
+                        "trace_id": self._data.get("trace_id", ""),
+                        "tools_used": tools_used,
+                        "escalated": str(self._data.get("escalated", False)),
+                        "prompt_version": self._data.get("prompt_version", ""),
+                    }
+                )
                 mlflow.log_params(
                     {
                         "role": self._data.get("role", ""),
@@ -113,13 +125,7 @@ class Tracer:
                         "iterations": float(self._data.get("iterations", 0)),
                         "escalated": float(self._data.get("escalated", False)),
                         "answer_length": float(len(str(self._data.get("answer", "")))),
-                        "tool_call_count": float(
-                            sum(
-                                1
-                                for s in self._data.get("steps", [])
-                                if s.get("type") == "tool_call"
-                            )
-                        ),
+                        "tool_call_count": float(len(tool_calls)),
                         "total_latency_s": float(
                             sum(
                                 s.get("latency_s", 0.0)
