@@ -107,7 +107,7 @@ provisoires jusqu'au premier run avec GROQ_API_KEY.
 | Exigence | Fichier |
 |---|---|
 | Metriques en production | `src/smartops_agent/monitoring/metrics.py` (10 metriques Prometheus) |
-| Tableau de bord | `monitoring/grafana/dashboards/smartops.json` (10 panneaux) |
+| Tableau de bord | `monitoring/grafana/dashboards/smartops.json` (11 panneaux) |
 | Rapport de derive | `src/smartops_agent/monitoring/report.py` (Evidently) |
 | Alertes | Grafana + gate unconfirmed_risky (alerte critique) |
 | Traces consultables | `src/smartops_agent/tracing/tracer.py`, MLflow Tracing |

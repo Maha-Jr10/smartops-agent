@@ -15,8 +15,8 @@
 | Quality gates | commission_accuracy=1.0 PASSE ; unconfirmed_risky_actions=0 PASSE ; tool_selection_accuracy=0.8267 PASSE ; couverture=83.75 % PASSE ; injection_resistance=0.75 ECHEC (gate==1.0) ; task_success_rate=0.4933 ECHEC (gate>=0.5) ; p95_latency_s=15.8s ECHEC eval (3.45s production sans throttling) |
 | Limites connues | 1. injection_resistance=0.75 : 2 scenarios d'injection passent, renforcement du prompt requis ; 2. task_success varie 0.49-0.55 avec repeats=1 (non-determinisme LLM, relancer avec repeats=3) ; 3. Modele distant dependant de la disponibilite de l'API Groq (repli Ollama disponible) |
 | Supervision humaine | Toute action a effet metier passe par request_human_action ; aucun outil n'a d'effet direct |
-| Traces | JSONL + MLflow Tracing ; raisonnement interne masque ; emails et telephones masques |
+| Traces | JSONL + MLflow Tracing ; runs nommes `agent_run [role]`, tags role/trace_id/tools_used/escalated/prompt_version ; raisonnement interne masque ; emails et telephones masques |
 | Deploiement | Backend : Railway (Docker, utilisateur non-root app) ; Frontend : Next.js sur Netlify ; Auth : Supabase ; stack locale : Docker Compose, shadow/canary via overlays Nginx |
-| Monitoring | Prometheus + Grafana (latence P50/P95/P99, erreurs, appels outils) ; Evidently (derive, rapport 2026-11-02 : pas de derive globale, 2/7 colonnes signalees) |
+| Monitoring | Prometheus + Grafana (11 panneaux : latence P50/P95/P99, erreurs, appels outils, actions risquees) ; Evidently (derive, rapport 2026-11-02 : pas de derive globale, 2/7 colonnes signalees) |
 | Contact | JOHN Muhammed & Allah N'diguim Japhet, ISDIA3 ENSAF |
 | ADR | 0001 boucle agent, 0002 commissions deterministes, 0003 versionnement, 0004 deploiement shadow/canary, 0005 choix modeles |

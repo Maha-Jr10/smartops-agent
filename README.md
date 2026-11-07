@@ -133,7 +133,7 @@ Le projet est entierement fonctionnel. Voici les fichiers cles de chaque partie.
 - [src/smartops_agent/evaluation/run.py](src/smartops_agent/evaluation/run.py) -- harnais d'evaluation (stub ou vrai LLM)
 - [src/smartops_agent/evaluation/mlflow_client.py](src/smartops_agent/evaluation/mlflow_client.py) -- suivi MLflow des experiences
 - [configs/gates.yaml](configs/gates.yaml) -- quality gates avec seuils justifies
-- [monitoring/grafana/dashboards/smartops.json](monitoring/grafana/dashboards/smartops.json) -- tableau de bord (10 panneaux P50/P95/P99)
+- [monitoring/grafana/dashboards/smartops.json](monitoring/grafana/dashboards/smartops.json) -- tableau de bord (11 panneaux P50/P95/P99, actions risquees)
 - [src/smartops_agent/monitoring/report.py](src/smartops_agent/monitoring/report.py) -- rapport de derive Evidently
 - [tests/load/locustfile.py](tests/load/locustfile.py) -- test de charge Locust
 

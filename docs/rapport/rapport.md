@@ -161,6 +161,9 @@ Deux niveaux :
 1. **Traces JSONL** locales (masquage PII avant ecriture) pour le monitoring et Evidently.
 2. **MLflow Tracing** : chaque appel LLM et chaque appel outil est enregistre avec
    sa latence, ses arguments et son resultat (sans raisonnement interne).
+   Chaque run de monitoring porte le nom `agent_run [role]` et les tags `role`,
+   `trace_id`, `tools_used` (outils appeles, separes par virgule), `escalated` et
+   `prompt_version` pour faciliter le filtrage dans DagsHub.
 
 Regles de masquage : emails --> `[EMAIL]`, numeros de telephone --> `[PHONE]`.
 
@@ -274,8 +277,11 @@ changement de modele.
 ### 6.2 Tableau de bord Grafana
 
 Fichier : `monitoring/grafana/dashboards/smartops.json`
-10 panneaux en 3 lignes : Requetes, Latence, Outils et escalades.
-Metriques cles : P50/P95/P99, taux d'erreur, file d'approbation, appels LLM journaliers.
+11 panneaux en 3 lignes : Requetes, Latence, Outils et escalades.
+Metriques cles : P50/P95/P99, taux d'erreur, file d'approbation, appels LLM journaliers,
+actions risquees sans validation (seuil rouge >= 1).
+L'histogramme de latence inclut un bucket a 0.1 s pour capturer les reponses rapides
+sans NaN sur P50/P95.
 
 ### 6.3 Rapport de derive Evidently
 

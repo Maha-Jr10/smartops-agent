@@ -7,6 +7,8 @@ Versionnement : [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Ajouts
+- MLflow : les runs de monitoring sont nommes `agent_run [role]` (ex. `agent_run [commercial]`) et taggues avec `role`, `trace_id`, `tools_used`, `escalated`, `prompt_version`
+- Tableau de bord Grafana : panneau "Actions risquees sans validation" (seuil rouge >= 1, metrique `smartops_unconfirmed_risky_actions_total`)
 - Interface web Next.js (Netlify) avec panneau de conversation, file d'approbation et monitoring
 - Authentification Supabase (tokens JWT verifies cote backend)
 - Fournisseur OpenRouter configure (nvidia/nemotron-3.5-lightning:free, google/gemma-4-31b-it:free, gratuits)
@@ -18,6 +20,8 @@ Versionnement : [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Systeme de prompt v4 : interdiction des tableaux markdown, retention des IDs de recherche, l'agent ne demande jamais d'ID a l'utilisateur (il cherche par nom lui-meme)
 
 ### Corrections
+- MLflow : runs passes de `nested=True` a `nested=False` pour eviter les references orphelines sur les trackers distants (DagsHub)
+- Metriques : bucket `0.1s` ajoute a l'histogramme de latence (evitait NaN sur P50/P95 pour les reponses rapides)
 - Piege CRM : nom trap mis a jour "Societe Marocaine de Services" (etait "Societe Generale Africaine")
 - Boucle agent : insertion du message assistant manquant avant le message outil orphelin lors d'un mauvais appel (evitait HTTP 500)
 - search_crm : pas de detection AMBIGUOUS sur les requetes de listage (query vide)
