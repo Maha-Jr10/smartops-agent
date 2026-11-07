@@ -13,6 +13,7 @@ RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY configs ./configs
+RUN mkdir -p /app/data/seed && chown -R app:app /app/data
 ENV PATH="/app/.venv/bin:$PATH" \
     SMARTOPS_CONFIG_DIR=/app/configs \
     PYTHONUNBUFFERED=1
