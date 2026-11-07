@@ -114,7 +114,13 @@ def _fetch_profile(user_id: str) -> tuple[str, str | None, str]:
     if raw_role not in ALLOWED_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Votre compte est en attente d'activation par un administrateur.",
+            detail=(
+                "Bienvenue sur SmartOps Agent. Votre compte a bien ete cree et attend "
+                "l'activation par un administrateur. Ceci est normal : l'acces au CRM "
+                "interne (meme fictif) est reserve aux utilisateurs valides. Pour "
+                "demander une activation, contactez muhammedjohn3@gmail.com en "
+                "precisant l'email utilise a l'inscription."
+            ),
         )
 
     # Cache only granted roles, not denials

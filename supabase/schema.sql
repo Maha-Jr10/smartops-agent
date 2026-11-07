@@ -4,7 +4,9 @@
 -- 1. Profiles table (extends auth.users)
 --    New users are assigned 'pending' until an admin promotes them.
 --    The backend (auth.py) only allows roles in ALLOWED_ROLES = {commercial, delivery, admin};
---    'pending' is rejected, forcing explicit promotion before any API access.
+--    'pending' is rejected with a user-friendly message that explains the
+--    activation step and names the admin contact, so new signups understand
+--    why they are blocked and know who to ask for access.
 create table if not exists public.profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
   email         text not null default '',

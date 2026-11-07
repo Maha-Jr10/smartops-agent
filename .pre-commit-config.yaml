@@ -11,7 +11,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=600]
-        exclude: ^uv\.lock$
+        exclude: ^(uv\.lock|docs/rapport/CR_MiniProjet3_SmartOps\.docx)$
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
