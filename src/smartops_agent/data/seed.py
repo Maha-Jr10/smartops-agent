@@ -85,7 +85,7 @@ _TEAM_MEMBERS = [
     ("Japhet Allah-n'diguim", "admin"),
     ("Nadir Hatim", "delivery"),
     ("Ez Zahy Mouhssin", "delivery"),
-    ("Bihkak Asmae", "admin"),
+    ("Bihkak Asmae", "commercial"),
 ]
 
 # remaining classmates used as client names
