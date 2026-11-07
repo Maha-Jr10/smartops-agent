@@ -260,6 +260,22 @@ class AgentLoop:
                     )
 
             if bad_call and invalid_retries_left >= 0:
+                # The tool-error message was appended without a preceding assistant message,
+                # which makes the history invalid for the LLM API. Insert it before.
+                assistant_retry: dict[str, Any] = {"role": "assistant", "content": response.content}
+                if response.tool_calls:
+                    assistant_retry["tool_calls"] = [
+                        {
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["name"],
+                                "arguments": json.dumps(tc["arguments"]),
+                            },
+                        }
+                        for tc in response.tool_calls
+                    ]
+                messages.insert(len(messages) - 1, assistant_retry)
                 continue
 
             # Append assistant message with tool calls + tool results

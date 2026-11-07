@@ -168,7 +168,9 @@ def seed_database(db_path: Path, params: SeedParams | None = None) -> None:
         elif i == 6:
             name = trap_base + " SA"  # piège : nom similaire
         else:
-            name = f"Entreprise {_name(rng)}"
+            # deterministic round-robin so every classmate name appears at least once
+            j = i if i < 5 else i - 2
+            name = f"Entreprise {_CLIENT_NAMES[j % len(_CLIENT_NAMES)]}"
         clients.append(
             {
                 "id": cid,
