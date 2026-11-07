@@ -45,7 +45,7 @@ def test_similar_client_name_trap(tmp_path: Path) -> None:
     names = [r[0] for r in con.execute("SELECT name FROM clients").fetchall()]
     con.close()
     # Two names share a common prefix (trap)
-    matching = [n for n in names if "Société Générale Africaine" in n]
+    matching = [n for n in names if "Société Marocaine de Services" in n]
     assert len(matching) >= 2, "Piège : deux clients aux noms similaires attendus"
 
 
