@@ -50,8 +50,8 @@ def search_crm(inp: SearchCrmInput, db_path: str) -> SearchCrmOutput:
 
     results = [CrmRecord(id=r["id"], name=r["name"], status=r["status"]) for r in rows]
 
-    # AMBIGUOUS si plusieurs enregistrements partagent un nom très proche
-    if len(results) > 1:
+    # AMBIGUOUS only when searching by name — not on listing queries (empty query)
+    if inp.query and len(results) > 1:
         names = {r.name.lower() for r in results}
         if any(a != b and (a in b or b in a) for a in names for b in names):
             raise ToolError(
