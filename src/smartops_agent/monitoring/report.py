@@ -72,6 +72,32 @@ def _trace_to_row(trace: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _download_traces_from_supabase(traces_path: Path) -> bool:
+    """Download traces JSONL from Supabase Storage if the local file is missing."""
+    try:
+        from smartops_agent.config import get_settings
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            return False
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        content: bytes = client.storage.from_("reports").download("traces/traces.jsonl")
+        if not content:
+            return False
+        traces_path.parent.mkdir(parents=True, exist_ok=True)
+        traces_path.write_bytes(content)
+        log.info("Traces downloaded from Supabase Storage (%d bytes)", len(content))
+        return True
+    except Exception:
+        log.debug("Could not download traces from Supabase Storage", exc_info=True)
+        return False
+
+
 def run_report(
     traces_path: Path = _TRACES_FILE,
     report_path: Path = _REPORT_FILE,
@@ -85,6 +111,9 @@ def run_report(
     except ImportError as exc:
         log.error("Evidently ou pandas manquant : %s", exc)
         return False
+
+    if not traces_path.exists():
+        _download_traces_from_supabase(traces_path)
 
     traces = _load_traces(traces_path)
     if len(traces) < _MIN_ROWS:

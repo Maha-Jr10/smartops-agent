@@ -7,11 +7,15 @@ Current batch  (n_current rows):   slower, more tool calls → triggers drift.
 from __future__ import annotations
 
 import json
+import logging
 import random
 from pathlib import Path
 from typing import Any
 
+log = logging.getLogger(__name__)
+
 _ROLES = ["commercial", "commercial", "delivery", "admin"]
+_STORAGE_PATH = "traces/traces.jsonl"
 
 _SHORT_ANSWERS = [
     "Voici les informations sur le client Diallo.",
@@ -78,13 +82,91 @@ def _make_trace(rng: random.Random, is_reference: bool) -> dict[str, Any]:
     }
 
 
+def _replay_metrics(rows: list[dict[str, Any]]) -> None:
+    """Increment Prometheus counters so Grafana shows activity from seed data."""
+    try:
+        from smartops_agent.monitoring.metrics import (
+            chat_latency_seconds,
+            chat_requests_total,
+            escalations_total,
+            iterations_total,
+            tool_calls_total,
+        )
+    except Exception:
+        log.debug("Prometheus metrics unavailable; skipping replay", exc_info=True)
+        return
+
+    for row in rows:
+        role = row.get("role", "commercial")
+        chat_requests_total.labels(role=role, status="ok").inc()
+        iters = row.get("iterations", 1)
+        iterations_total.observe(iters)
+        total_latency = sum(s.get("latency_s", 0.0) for s in row.get("steps", []))
+        chat_latency_seconds.observe(total_latency)
+        for step in row.get("steps", []):
+            if step.get("type") == "tool_call":
+                tool_calls_total.labels(tool="seed", status="ok").inc()
+        if row.get("escalated"):
+            escalations_total.labels(reason="seed").inc()
+
+
+def _upload_to_supabase(traces_path: Path) -> bool:
+    """Persist the traces JSONL to Supabase Storage so it survives redeploys."""
+    try:
+        from smartops_agent.config import get_settings
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            return False
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        with traces_path.open("rb") as fh:
+            content = fh.read()
+        client.storage.from_("reports").upload(
+            _STORAGE_PATH,
+            content,
+            {"contentType": "application/x-ndjson", "upsert": "true"},  # type: ignore[arg-type]
+        )
+        log.info("Seed traces uploaded to Supabase Storage: reports/%s", _STORAGE_PATH)
+        return True
+    except Exception:
+        log.debug("Could not upload seed traces to Supabase Storage", exc_info=True)
+        return False
+
+
+def _delete_from_supabase() -> bool:
+    """Remove the persisted traces from Supabase Storage."""
+    try:
+        from smartops_agent.config import get_settings
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            return False
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        client.storage.from_("reports").remove([_STORAGE_PATH])
+        log.info("Seed traces removed from Supabase Storage")
+        return True
+    except Exception:
+        log.debug("Could not remove seed traces from Supabase Storage", exc_info=True)
+        return False
+
+
 def seed_traces(
     traces_path: Path = Path("reports/traces/traces.jsonl"),
     n_reference: int = 60,
     n_current: int = 100,
     random_seed: int = 42,
 ) -> int:
-    """Write seed traces; return total rows written."""
+    """Write seed traces, persist to Supabase Storage, replay Prometheus metrics."""
     rng = random.Random(random_seed)  # noqa: S311  # nosec B311
     traces_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -98,14 +180,18 @@ def seed_traces(
         for row in rows:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
+    _upload_to_supabase(traces_path)
+    _replay_metrics(rows)
     return len(rows)
 
 
 def delete_traces(
     traces_path: Path = Path("reports/traces/traces.jsonl"),
 ) -> bool:
-    """Delete the traces file. Returns True if the file existed."""
+    """Delete the local traces file and remove from Supabase Storage."""
+    deleted_local = False
     if traces_path.exists():
         traces_path.unlink()
-        return True
-    return False
+        deleted_local = True
+    _delete_from_supabase()
+    return deleted_local
