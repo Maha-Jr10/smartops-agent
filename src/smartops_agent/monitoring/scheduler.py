@@ -25,11 +25,15 @@ async def _monitor_loop(interval_s: float) -> None:
 
 
 def _run_now() -> None:
+    from smartops_agent.data.seed_traces import upload_traces
     from smartops_agent.monitoring.report import run_report
 
     traces_path = Path("reports/traces/traces.jsonl")
     log.info("Background drift monitor: running report (traces=%s)", traces_path)
     run_report(traces_path=traces_path)
+    # Persist accumulated real traces so they survive a container redeploy
+    if traces_path.exists():
+        upload_traces(traces_path)
 
 
 def start_scheduler_task(

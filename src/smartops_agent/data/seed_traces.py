@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 _ROLES = ["commercial", "commercial", "delivery", "admin"]
 _STORAGE_PATH = "traces/traces.jsonl"
+_MIN_REAL_ROWS = 10  # don't overwrite if we already have this many real traces
 
 _SHORT_ANSWERS = [
     "Voici les informations sur le client Diallo.",
@@ -110,6 +111,17 @@ def _replay_metrics(rows: list[dict[str, Any]]) -> None:
             escalations_total.labels(reason="seed").inc()
 
 
+def _count_lines(path: Path) -> int:
+    if not path.exists():
+        return 0
+    count = 0
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            if line.strip():
+                count += 1
+    return count
+
+
 def _upload_to_supabase(traces_path: Path) -> bool:
     """Persist the traces JSONL to Supabase Storage so it survives redeploys."""
     try:
@@ -160,15 +172,26 @@ def _delete_from_supabase() -> bool:
         return False
 
 
+def upload_traces(
+    traces_path: Path = Path("reports/traces/traces.jsonl"),
+) -> bool:
+    """Upload current traces file to Supabase Storage (called by scheduler)."""
+    return _upload_to_supabase(traces_path)
+
+
 def seed_traces(
     traces_path: Path = Path("reports/traces/traces.jsonl"),
     n_reference: int = 60,
     n_current: int = 100,
     random_seed: int = 42,
 ) -> int:
-    """Write seed traces, persist to Supabase Storage, replay Prometheus metrics."""
+    """Seed demo traces if not enough real data exists; always replay Prometheus metrics.
+
+    When >= _MIN_REAL_ROWS real traces already exist the file is left untouched so
+    production data is never overwritten.  Metrics are replayed regardless so
+    Grafana shows activity immediately after injection.
+    """
     rng = random.Random(random_seed)  # noqa: S311  # nosec B311
-    traces_path.parent.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, Any]] = []
     for _ in range(n_reference):
@@ -176,11 +199,20 @@ def seed_traces(
     for _ in range(n_current):
         rows.append(_make_trace(rng, is_reference=False))
 
-    with traces_path.open("w", encoding="utf-8") as fh:
-        for row in rows:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    existing = _count_lines(traces_path)
+    if existing < _MIN_REAL_ROWS:
+        traces_path.parent.mkdir(parents=True, exist_ok=True)
+        with traces_path.open("w", encoding="utf-8") as fh:
+            for row in rows:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        _upload_to_supabase(traces_path)
+        log.info("Seed traces written (%d rows)", len(rows))
+    else:
+        log.info(
+            "Skipping seed write: %d real traces exist; replaying metrics only",
+            existing,
+        )
 
-    _upload_to_supabase(traces_path)
     _replay_metrics(rows)
     return len(rows)
 
