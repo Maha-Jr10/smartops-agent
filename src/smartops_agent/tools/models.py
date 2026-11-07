@@ -38,14 +38,15 @@ class EntityType(StrEnum):
 
 
 class SearchCrmInput(BaseModel):
-    query: str
+    query: str = ""
     entity: EntityType
+    status: str | None = None
 
     @field_validator("query")
     @classmethod
     def query_length(cls, v: str) -> str:
-        if len(v) < 2 or len(v) > 100:
-            raise ValueError("query must be 2-100 characters")
+        if len(v) > 100:
+            raise ValueError("query must be at most 100 characters")
         return v
 
 

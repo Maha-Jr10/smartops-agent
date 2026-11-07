@@ -7,21 +7,35 @@ TOOL_SCHEMAS: list[dict] = [  # type: ignore[type-arg]
         "type": "function",
         "function": {
             "name": "search_crm",
-            "description": "Recherche dans la base CRM (clients, leads, projets).",
+            "description": (
+                "Recherche dans la base CRM (clients, leads, projets). "
+                "Retourne id, name, status pour chaque résultat (max 10)."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Texte de recherche (2-100 caractères)",
+                        "description": (
+                            "Texte de recherche sur le nom (vide = pas de filtre sur le nom). "
+                            "Exemple : 'Diallo' pour chercher par nom, '' pour lister tous."
+                        ),
                     },
                     "entity": {
                         "type": "string",
                         "enum": ["lead", "client", "project"],
                         "description": "Type d'entité à rechercher",
                     },
+                    "status": {
+                        "type": "string",
+                        "description": (
+                            "Filtre optionnel sur le statut. "
+                            "Clients/leads : 'active', 'inactive'. "
+                            "Projets : 'active', 'completed', 'paused'."
+                        ),
+                    },
                 },
-                "required": ["query", "entity"],
+                "required": ["entity"],
             },
         },
     },

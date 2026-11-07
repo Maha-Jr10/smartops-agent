@@ -147,7 +147,7 @@ def test_invalid_tool_args_retry(tmp_path: Path) -> None:
             {"id": "tc3", "name": "search_crm", "arguments": {"query": "x", "entity": "client"}}
         ],
     )
-    # query trop courte (< 2 chars) — ValidationError sur SearchCrmInput
+    # entité invalide — ValidationError sur SearchCrmInput
     bad_args = LLMResponse(
         content=None,
         tool_calls=[

@@ -23,19 +23,30 @@ _TABLE_MAP = {
 def search_crm(inp: SearchCrmInput, db_path: str) -> SearchCrmOutput:
     """Recherche dans la table correspondant à l'entité, retourne au plus 10 fiches."""
     table = _TABLE_MAP[inp.entity]
-    query_lower = inp.query.lower()
+
+    conditions: list[str] = []
+    params: list[str] = []
+    if inp.query:
+        conditions.append("lower(name) LIKE ?")
+        params.append(f"%{inp.query.lower()}%")
+    if inp.status:
+        conditions.append("lower(status) = ?")
+        params.append(inp.status.lower())
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+    # table comes from a fixed enum — no user input reaches the SQL identifier
+    _sql = f"SELECT id, name, status FROM {table} WHERE {where}"  # noqa: S608  # nosec B608
 
     con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row
     try:
-        # table comes from a fixed enum -- no user input reaches the SQL identifier
-        _sql = f"SELECT id, name, status FROM {table} WHERE lower(name) LIKE ?"  # noqa: S608  # nosec B608
-        rows = con.execute(_sql, (f"%{query_lower}%",)).fetchmany(10)
+        rows = con.execute(_sql, params).fetchmany(10)
     finally:
         con.close()
 
     if not rows:
-        raise ToolError(ToolErrorCode.NOT_FOUND, f"Aucun résultat pour « {inp.query} »")
+        desc = inp.query or inp.status or inp.entity.value
+        raise ToolError(ToolErrorCode.NOT_FOUND, f"Aucun résultat pour « {desc} »")
 
     results = [CrmRecord(id=r["id"], name=r["name"], status=r["status"]) for r in rows]
 
