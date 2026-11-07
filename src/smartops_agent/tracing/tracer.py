@@ -99,7 +99,8 @@ class Tracer:
         try:
             mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
             mlflow.set_experiment("smartops-agent-monitoring")
-            with mlflow.start_run(run_name="agent_run", nested=True):
+            # nested=False: each chat turn is an independent top-level run on remote trackers
+            with mlflow.start_run(run_name="agent_run", nested=False):
                 mlflow.log_params(
                     {
                         "role": self._data.get("role", ""),
