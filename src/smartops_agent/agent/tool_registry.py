@@ -23,7 +23,7 @@ TOOL_SCHEMAS: list[dict] = [  # type: ignore[type-arg]
                     },
                     "entity": {
                         "type": "string",
-                        "enum": ["lead", "client", "project"],
+                        "enum": ["lead", "client", "project", "team_member"],
                         "description": "Type d'entité à rechercher",
                     },
                     "status": {

@@ -17,25 +17,31 @@ _TABLE_MAP = {
     EntityType.client: "clients",
     EntityType.lead: "leads",
     EntityType.project: "projects",
+    EntityType.team_member: "team_members",
 }
+
+# Tables without a status column — SELECT returns a placeholder value
+_NO_STATUS_ENTITIES = {EntityType.team_member}
 
 
 def search_crm(inp: SearchCrmInput, db_path: str) -> SearchCrmOutput:
     """Recherche dans la table correspondant à l'entité, retourne au plus 10 fiches."""
     table = _TABLE_MAP[inp.entity]
+    has_status = inp.entity not in _NO_STATUS_ENTITIES
 
     conditions: list[str] = []
     params: list[str] = []
     if inp.query:
         conditions.append("lower(name) LIKE ?")
         params.append(f"%{inp.query.lower()}%")
-    if inp.status:
+    if inp.status and has_status:
         conditions.append("lower(status) = ?")
         params.append(inp.status.lower())
 
     where = " AND ".join(conditions) if conditions else "1=1"
+    select_cols = "id, name, status" if has_status else "id, name, role AS status"
     # table comes from a fixed enum — no user input reaches the SQL identifier
-    _sql = f"SELECT id, name, status FROM {table} WHERE {where}"  # noqa: S608  # nosec B608
+    _sql = f"SELECT {select_cols} FROM {table} WHERE {where}"  # noqa: S608  # nosec B608
 
     con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row

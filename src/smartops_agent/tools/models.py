@@ -35,6 +35,7 @@ class EntityType(StrEnum):
     lead = "lead"
     client = "client"
     project = "project"
+    team_member = "team_member"
 
 
 class SearchCrmInput(BaseModel):

@@ -39,12 +39,13 @@ export interface HealthStatus {
 
 export async function sendChat(
   message: string,
+  sessionId?: string,
 ): Promise<{ answer: string; trace_id: string }> {
   const headers = await authHeaders();
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, session_id: sessionId ?? "" }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));

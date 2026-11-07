@@ -10,16 +10,54 @@ const SUGGESTIONS = [
   "Montre-moi les leads en attente de contact",
 ];
 
+const LS_MESSAGES_KEY = "smartops_chat_messages";
+const LS_SESSION_KEY  = "smartops_chat_session_id";
+
 let idCounter = 0;
 function genId() { return `msg-${++idCounter}`; }
 
+function newSessionId() {
+  try { return crypto.randomUUID(); } catch { return Math.random().toString(36).slice(2); }
+}
+
+function loadFromStorage(): { messages: ChatMessage[]; sessionId: string } {
+  try {
+    const raw = localStorage.getItem(LS_MESSAGES_KEY);
+    const sid = localStorage.getItem(LS_SESSION_KEY);
+    const messages: ChatMessage[] = raw
+      ? (JSON.parse(raw) as Array<ChatMessage & { timestamp: string }>).map(m => ({
+          ...m,
+          timestamp: new Date(m.timestamp),
+        }))
+      : [];
+    return { messages, sessionId: sid ?? newSessionId() };
+  } catch {
+    return { messages: [], sessionId: newSessionId() };
+  }
+}
+
 export default function ChatPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessionId, setSessionId] = useState<string>("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
+
+  // Restore from localStorage on mount
+  useEffect(() => {
+    const { messages: saved, sessionId: sid } = loadFromStorage();
+    setMessages(saved);
+    setSessionId(sid);
+    try { localStorage.setItem(LS_SESSION_KEY, sid); } catch { /* ignore */ }
+  }, []);
+
+  // Persist messages whenever they change
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try { localStorage.setItem(LS_MESSAGES_KEY, JSON.stringify(messages)); } catch { /* ignore */ }
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -39,7 +77,7 @@ export default function ChatPanel() {
     setLoading(true);
 
     try {
-      const { answer, trace_id } = await sendChat(trimmed);
+      const { answer, trace_id } = await sendChat(trimmed, sessionId);
       setMessages(prev => [...prev, {
         id: genId(), role: "agent", text: answer, traceId: trace_id, timestamp: new Date(),
       }]);
@@ -72,6 +110,16 @@ export default function ChatPanel() {
     inputRef.current?.focus();
   }
 
+  function handleClear() {
+    const sid = newSessionId();
+    setMessages([]);
+    setSessionId(sid);
+    try {
+      localStorage.removeItem(LS_MESSAGES_KEY);
+      localStorage.setItem(LS_SESSION_KEY, sid);
+    } catch { /* ignore */ }
+  }
+
   return (
     <div className="chat-shell">
 
@@ -80,7 +128,7 @@ export default function ChatPanel() {
         <div className="chat-toolbar">
           <button
             className="clear-btn"
-            onClick={() => setMessages([])}
+            onClick={handleClear}
             title="Effacer la conversation"
           >
             <IconTrash />
