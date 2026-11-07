@@ -20,6 +20,8 @@ def request_human_action(
     inp: RequestHumanActionInput,
     allowed_actions: list[str],
     queue: ApprovalQueue,
+    requested_by: str = "",
+    role: str = "",
 ) -> RequestHumanActionOutput:
     """Enregistre une demande dans la file d'attente pour validation humaine."""
     if inp.action not in allowed_actions:
@@ -29,5 +31,7 @@ def request_human_action(
             f"Actions autorisées : {', '.join(allowed_actions)}",
         )
     request_id = str(uuid.uuid4())
-    queue.enqueue(request_id, inp.action, inp.reason, inp.payload)
+    queue.enqueue(
+        request_id, inp.action, inp.reason, inp.payload, requested_by=requested_by, role=role
+    )
     return RequestHumanActionOutput(request_id=request_id, status="pending")

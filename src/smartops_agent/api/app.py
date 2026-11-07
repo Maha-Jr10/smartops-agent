@@ -250,7 +250,21 @@ def create_app(
         # Admins see all; others see only their own requests
         if not user.is_admin:
             items = [i for i in items if i.get("requested_by") == user.user_id]
-        return items
+        # Map internal field names to the frontend Approval interface
+        return [
+            {
+                "request_id": item["id"],
+                "action": item["action"],
+                "details": item.get("payload", {}),
+                "reason": item.get("reason", ""),
+                "requested_by": item.get("requested_by", ""),
+                "role": item.get("role", ""),
+                "status": item["status"],
+                "created_at": item.get("created_at", ""),
+                "comment": item.get("comment", ""),
+            }
+            for item in items
+        ]
 
     @app.post("/approvals/{request_id}")
     def decide_approval(
@@ -262,7 +276,7 @@ def create_app(
             raise HTTPException(status_code=422, detail="decision must be 'approved' or 'rejected'")
         # Prevent self-approval
         all_items = effective_queue.get_all()
-        item = next((i for i in all_items if i.get("request_id") == request_id), None)
+        item = next((i for i in all_items if i.get("id") == request_id), None)
         if item and item.get("requested_by") == user.user_id:
             raise HTTPException(status_code=403, detail="Auto-approbation interdite.")
         ok = effective_queue.approve(request_id, body.decision, body.comment)

@@ -107,7 +107,9 @@ def _call_tool(
         return draft_followup(inp4, db_path, role).model_dump()
     if name == "request_human_action":
         inp5 = RequestHumanActionInput(**args)
-        return request_human_action(inp5, get_allowed_human_actions(), queue).model_dump()
+        return request_human_action(
+            inp5, get_allowed_human_actions(), queue, requested_by=user_id, role=role
+        ).model_dump()
     raise ToolError(ToolErrorCode.FORBIDDEN, f"Outil inconnu : {name}")
 
 

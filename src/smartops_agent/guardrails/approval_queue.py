@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 
@@ -19,6 +20,8 @@ class ApprovalQueue:
         action: str,
         reason: str,
         payload: dict[str, Any],
+        requested_by: str = "",
+        role: str = "",
     ) -> None:
         with self._lock:
             self._items[request_id] = {
@@ -27,6 +30,9 @@ class ApprovalQueue:
                 "reason": reason,
                 "payload": payload,
                 "status": "pending",
+                "requested_by": requested_by,
+                "role": role,
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
 
     def get_all(self) -> list[dict[str, Any]]:
