@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import React, { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
 import { sendChat, type ChatMessage } from "@/lib/api";
 
 const SUGGESTIONS = [
@@ -418,7 +418,30 @@ export default function ChatPanel() {
           border: 1px solid currentColor; opacity: .9;
           border-radius: 16px 16px 16px 4px;
         }
-        .bubble-text { font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+        .bubble-text { font-size: 14px; line-height: 1.6; }
+        .bubble-text .md-gap { height: 6px; }
+        .bubble-text .md-li { display: flex; gap: 6px; align-items: baseline; padding: 1px 0; }
+        .bubble-text .md-bullet { flex-shrink: 0; }
+        .bubble-text .md-bq {
+          margin: 2px 0; padding: 4px 10px;
+          border-left: 3px solid var(--border-focus, #6366f1);
+          background: var(--bg-hover); border-radius: 0 6px 6px 0;
+          font-style: italic; color: var(--fg-secondary);
+        }
+        .bubble-text .md-hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+        .bubble-text .md-code {
+          margin: 6px 0; padding: 10px 12px;
+          background: var(--bg-input, #f8f9fa); border: 1px solid var(--border);
+          border-radius: 8px; overflow-x: auto;
+          font-family: 'Menlo','Consolas',monospace; font-size: 12px;
+          line-height: 1.5; color: var(--fg-secondary); white-space: pre;
+        }
+        .bubble-text .md-icode {
+          padding: 1px 5px; border-radius: 4px;
+          background: var(--bg-input, #f1f5f9);
+          font-family: 'Menlo','Consolas',monospace; font-size: 12px;
+          color: var(--fg-secondary);
+        }
         .bubble-meta { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
         .bubble-meta-right { flex-direction: row-reverse; }
         .bubble-time { font-size: 11px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
@@ -428,14 +451,73 @@ export default function ChatPanel() {
   );
 }
 
-/* ── Minimal markdown renderer (bold + bullets only) ────────── */
-function renderMarkdown(text: string) {
-  const normalized = text.replace(/^[*-] /gm, "• ");
-  return normalized.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={i}>{part.slice(2, -2)}</strong>
-      : part
-  );
+/* ── Markdown renderer (bold, inline code, bullets, blockquote, code block, hr) ── */
+function renderInline(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("`") && part.endsWith("`"))
+      return <code key={i} className="md-icode">{part.slice(1, -1)}</code>;
+    return part;
+  });
+}
+
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Fenced code block
+    if (line.startsWith("```")) {
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      nodes.push(<pre key={i} className="md-code"><code>{codeLines.join("\n")}</code></pre>);
+      i++;
+      continue;
+    }
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) {
+      nodes.push(<hr key={i} className="md-hr" />);
+      i++;
+      continue;
+    }
+    // Blockquote
+    if (line.startsWith("> ") || line === ">") {
+      nodes.push(
+        <blockquote key={i} className="md-bq">
+          {renderInline(line.startsWith("> ") ? line.slice(2) : "")}
+        </blockquote>
+      );
+      i++;
+      continue;
+    }
+    // Bullet
+    if (/^[•*\-] /.test(line)) {
+      nodes.push(
+        <div key={i} className="md-li">
+          <span className="md-bullet">•</span>
+          <span>{renderInline(line.replace(/^[•*\-] /, ""))}</span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+    // Empty line → small gap
+    if (line.trim() === "") {
+      nodes.push(<div key={i} className="md-gap" />);
+      i++;
+      continue;
+    }
+    // Regular line
+    nodes.push(<div key={i}>{renderInline(line)}</div>);
+    i++;
+  }
+  return <>{nodes}</>;
 }
 
 /* ── Message bubble ─────────────────────────────────────────── */
@@ -451,7 +533,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       )}
       <div className={`bubble-col ${isUser ? "bubble-col-user" : ""}`}>
         <div className={`bubble ${isUser ? "bubble-user" : isError ? "bubble-error" : "bubble-agent"}`}>
-          <p className="bubble-text">{isUser ? msg.text : renderMarkdown(msg.text)}</p>
+          <div className="bubble-text">{isUser ? msg.text : renderMarkdown(msg.text)}</div>
         </div>
         <div className={`bubble-meta ${isUser ? "bubble-meta-right" : ""}`}>
           <span className="bubble-time">{time}</span>
