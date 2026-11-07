@@ -14,9 +14,11 @@ exécution, limité dans le temps et tracé. Les permissions sont définies dans
 
 ## search_crm
 
-- **Entrées :** `query` (texte, 2 à 100 caractères), `entity` (`lead` | `client` | `project`)
+- **Entrées :** `query` (texte, 0 à 100 caractères), `entity` (`lead` | `client` | `project` | `team_member`), `status` (optionnel)
 - **Sorties :** liste de fiches (identifiant, nom, statut), au plus 10
-- **Erreurs :** `NOT_FOUND`, `AMBIGUOUS` (plusieurs résultats proches : l'agent doit demander une précision)
+- **Erreurs :** `NOT_FOUND`, `AMBIGUOUS` (plusieurs résultats proches pour une recherche par nom : l'agent doit demander une précision)
+- **Note team_member :** le champ `status` retourne le rôle du membre (commercial, delivery, admin). Le filtre `status` n'est pas appliqué pour cette entité.
+- **Comportement listing :** `query=""` liste les 10 premiers enregistrements sans filtre de nom (pas de détection AMBIGUOUS sur un listing).
 
 ## get_invoice_status
 

@@ -6,6 +6,24 @@ Versionnement : [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Ajouts
+- Interface web Next.js (Netlify) avec panneau de conversation, file d'approbation et monitoring
+- Authentification Supabase (tokens JWT verifies cote backend)
+- Fournisseur OpenRouter configure (nvidia/nemotron-3.5-lightning:free, google/gemma-4-31b-it:free, gratuits)
+- Noms marocains / classmates comme donnees fictives CRM (round-robin deterministe, tous les noms apparaissent)
+- Equipe fictive de 7 membres : Bihkak Asmae (commercial), Japhet Allah-n'diguim (admin) ajoutes
+- search_crm supporte l'entite team_member (table team_members, champ role retourne comme status)
+- Memoire de session : frontend envoie session_id (UUID, localStorage), l'historique backend est active par tour
+- Persistance des messages dans localStorage, survive au rechargement de page
+- Systeme de prompt v4 : interdiction des tableaux markdown, retention des IDs de recherche, l'agent ne demande jamais d'ID a l'utilisateur (il cherche par nom lui-meme)
+
+### Corrections
+- Piege CRM : nom trap mis a jour "Societe Marocaine de Services" (etait "Societe Generale Africaine")
+- Boucle agent : insertion du message assistant manquant avant le message outil orphelin lors d'un mauvais appel (evitait HTTP 500)
+- search_crm : pas de detection AMBIGUOUS sur les requetes de listage (query vide)
+- Interface : rendu markdown dans les bulles de l'agent (gras, listes)
+- Disposition mobile responsive pour le header et les suggestions
+
 ## [1.0.0] - 2026-11-01
 
 ### Ajouts

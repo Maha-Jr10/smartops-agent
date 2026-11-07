@@ -11,9 +11,11 @@ L'agent lit et prépare. **Un humain valide toute action qui a un effet réel.**
 
 ```mermaid
 flowchart LR
-    U[Utilisateur] --> API[API FastAPI]
+    U[Utilisateur] --> FE[Interface Web<br/>Next.js / Netlify]
+    FE --> SB[Auth Supabase<br/>JWT]
+    SB --> API[API FastAPI<br/>Railway]
     API --> G1[Garde-fous entrée<br/>rôle, injection, limites]
-    G1 --> A[Boucle agent<br/>LLM Groq / Ollama]
+    G1 --> A[Boucle agent<br/>LLM OpenRouter / Groq / Ollama]
     A --> V[Validation des arguments<br/>Pydantic]
     V --> T[Outils simulés]
     T --> DB[(CRM fictif<br/>SQLite)]
@@ -26,13 +28,13 @@ flowchart LR
 
 ## Démarrage rapide (5 minutes)
 
-**Prérequis :** Python 3.12, [uv](https://docs.astral.sh/uv/), Git.
+**Prérequis :** Python 3.12, [uv](https://docs.astral.sh/uv/), Git, Node.js 18+ (pour le frontend).
 Docker et Terraform sont optionnels (stack complète). Sous Windows, utiliser WSL ou Git Bash pour `make`.
 
-**Sans clé API Groq**, tout fonctionne avec le LLM simulé intégré.
+**Sans clé API**, tout fonctionne avec le LLM simulé intégré.
 
 ```bash
-# 1. Copier la configuration (GROQ_API_KEY optionnel)
+# 1. Copier la configuration (GROQ_API_KEY ou OPENROUTER_API_KEY optionnel)
 cp .env.example .env
 
 # 2. Installer les dépendances et les hooks
@@ -41,18 +43,24 @@ make setup
 # 3. Vérifier que tout passe (lint, types, tests, sécurité, eval, gates)
 make ci
 
-# 4. Démarrer l'API
+# 4. Démarrer l'API backend
 make serve
 # --> http://localhost:8000/health  {"status": "ok", "version": "1.0.0"}
 # --> http://localhost:8000/docs    interface Swagger
+
+# 5. (Optionnel) Démarrer le frontend localement
+cd frontend && npm install && npm run dev
+# --> http://localhost:3000
 ```
 
-**Envoyer un message à l'agent :**
+**Version deployee publiquement :** backend sur Railway, frontend sur Netlify (authentification Supabase requise).
+
+**Envoyer un message à l'agent (dev local, sans auth) :**
 
 ```bash
 curl -s -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"Cherche le client Diallo","role":"commercial","user_id":"alice"}' \
+  -d '{"message":"Cherche le client Bensaid Rim","role":"commercial","user_id":"alice","session_id":"demo-01"}' \
   | python -m json.tool
 ```
 
@@ -73,7 +81,7 @@ curl -s -X POST http://localhost:8000/chat \
 | CI/CD | GitHub Actions : qualité, tests, sécurité, image Docker, eval gate, release |
 | Quality gates | `configs/gates.yaml`, chaque seuil justifié |
 | Sécurité | gitleaks, bandit, pip-audit, Trivy, Dependabot |
-| Déploiement | Docker, Terraform (staging local), image publiée sur GHCR |
+| Déploiement | Docker, Terraform (staging local), image publiée sur GHCR ; Railway (backend), Netlify (frontend) |
 | Monitoring | Prometheus, Grafana, Evidently (dérive) |
 | Gouvernance | registre des risques, fiche système, ADR, validation humaine |
 
@@ -112,13 +120,13 @@ Le projet est entierement fonctionnel. Voici les fichiers cles de chaque partie.
 
 - [src/smartops_agent/agent/loop.py](src/smartops_agent/agent/loop.py) -- boucle LLM, garde-fous, max 6 iterations
 - [src/smartops_agent/api/app.py](src/smartops_agent/api/app.py) -- API FastAPI, routes `/chat` `/approvals` `/metrics`
-- [src/smartops_agent/tools/](src/smartops_agent/tools/) -- 5 outils (search_crm, get_invoice_status, calculate_commission, draft_followup, request_human_action)
+- [src/smartops_agent/tools/](src/smartops_agent/tools/) -- 5 outils (search_crm avec entites client/lead/project/team_member, get_invoice_status, calculate_commission, draft_followup, request_human_action)
 - [src/smartops_agent/guardrails/](src/smartops_agent/guardrails/) -- permissions par role, detection d'injection
 - [src/smartops_agent/tracing/tracer.py](src/smartops_agent/tracing/tracer.py) -- traces JSONL avec masquage PII
 - [src/smartops_agent/monitoring/metrics.py](src/smartops_agent/monitoring/metrics.py) -- 10 metriques Prometheus
 - [docker-compose.yml](docker-compose.yml), [docker-compose.shadow.yml](docker-compose.shadow.yml), [docker-compose.canary.yml](docker-compose.canary.yml) -- deploiement shadow/canary
 
-**Allah N'diguim Japhet** -- donnees, evaluation, observabilite :
+**Allah N'diguim Japhet** -- donnees, evaluation, observabilite, frontend :
 
 - [src/smartops_agent/data/seed.py](src/smartops_agent/data/seed.py) -- generation de la base fictive (graine 42, 30 clients, 40 projets, 60 factures)
 - [data/scenarios/](data/scenarios/) -- 75 scenarios JSONL en 7 categories

@@ -2,7 +2,7 @@
 
 **ENSAF ISDIA3 - Mini-projet MLOps, 2026-2027**
 Binome : JOHN Muhammed & Allah N'diguim Japhet
-Date : 2026-11-01
+Date : 2026-11-07
 
 ---
 
@@ -46,13 +46,18 @@ Trois risques guides toutes les decisions de conception (detail : `docs/gouverna
 ### 2.1 Vue d'ensemble
 
 ```
-Utilisateur --> API FastAPI
+Utilisateur --> Interface web (Next.js / Netlify)
+                  |
+                  +-- Authentification Supabase (JWT)
+                  |
+                  v
+                API FastAPI (Railway)
                   |
                   +-- Garde-fous entree (role, injection, limites de debit)
                   |
                   +-- Boucle agent (loop.py)
                   |       |
-                  |       +-- LLMClient (Groq ou Ollama)
+                  |       +-- LLMClient (OpenRouter / Groq / Ollama)
                   |       |
                   |       +-- Validation Pydantic des arguments
                   |       |
@@ -88,6 +93,9 @@ Chaque appel LLM et chaque appel outil est trace avec sa latence.
 Aucun outil n'a d'effet definitif : seul `request_human_action` insere une
 entree dans la file d'approbation, qui necessite une decision humaine explicite
 avant tout effet metier.
+
+L'outil `search_crm` supporte quatre entites : `client`, `lead`, `project` et `team_member`.
+L'agent recherche automatiquement les identifiants par nom sans demander l'ID a l'utilisateur.
 
 ### 2.4 Commissions (ADR 0002)
 
@@ -139,11 +147,12 @@ pour garantir la traçabilite.
 
 ### 4.1 LLM
 
-Modele par defaut : **llama-3.3-70b-versatile** via l'API Groq (gratuit en TP,
-appel natif a la fonction-outil). Repli local : **qwen2.5:7b** via Ollama.
+Modele par defaut : `openai/gpt-oss-120b` via l'API Groq (alias `groq-large`).
+Autres fournisseurs configures : OpenRouter (`nvidia/nemotron-3.5-lightning:free`,
+`google/gemma-4-31b-it:free`, gratuits). Repli local : `qwen2.5:7b` via Ollama.
 
-Les deux modeles sont compares dans MLflow. Identifiant exact figure dans
-`configs/models.yaml` et enregistre dans chaque run.
+Les modeles sont compares dans MLflow. Identifiant exact figure dans
+`configs/models.yaml` et enregistre dans chaque run. Prompt systeme : version v4.
 
 ### 4.2 Traçabilite
 
@@ -159,7 +168,7 @@ Regles de masquage : emails --> `[EMAIL]`, numeros de telephone --> `[PHONE]`.
 
 - ruff (lint + format), mypy strict, pre-commit a chaque commit.
 - Commits conventionnels, branches + pull requests relues par le binome.
-- Coverage >= 80 % (atteint : 83.75 %, 103 tests, make ci du 2026-11-02).
+- Coverage >= 80 % (atteint : 82 %, 170 tests, make ci du 2026-11-07).
 
 ### 4.4 Securite
 
@@ -284,6 +293,9 @@ nombre d'appels outils, latence, taux d'escalade.
 `docker-compose.yml` : API, MLflow, Prometheus, Grafana.
 Commande : `make serve` (API seule) ou `docker compose up` (stack complete).
 
+**Deploiement public :** backend deploye sur Railway (Docker, utilisateur non-root `app`),
+frontend sur Netlify (Next.js). Authentification via Supabase (tokens JWT verifies cote backend).
+
 ### 7.2 Strategie shadow/canary (ADR 0004)
 
 Avant toute promotion en production :
@@ -321,8 +333,10 @@ GitHub Actions (`.github/workflows/`) :
 4. **Base fictive limitee** : 40 clients, 20 projets, 30 factures.
    Comportement sur une vraie base de production non valide.
 
-5. **Interface utilisateur** : seule une API REST est fournie.
-   Une interface web ou Slack est hors perimetre de ce mini-projet.
+5. **Memoire de session ephemere** : l'historique de conversation est stocke en memoire sur
+   le backend (Railway) et se remet a zero a chaque redemarrage ou nouveau deploiement.
+   Le frontend persiste l'affichage dans localStorage mais pas le contexte LLM cote serveur.
+   Une solution durable necessite un stockage persistant (Supabase, Redis).
 
 ### 8.2 Perspectives
 

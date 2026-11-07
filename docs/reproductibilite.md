@@ -25,6 +25,7 @@ reproduit exactement le run de reference (LLM simule, graine fixe).
 | v1.0.0 | `d1ecc86a0a2446ac9518db7e2c4a1680` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.5467 | 1.0 | 0.875 |
 | v1.0.0 | `b247be0c129b4204975f57c3d797ea7e` | openai/gpt-oss-20b (reel) | v2 | 75 x1 | 0.4533 | 1.0 | 0.75 |
 | v1.0.0 | `reports/eval/metrics.json (2026-11-02)` | openai/gpt-oss-120b (reel) | v2 | 75 x1 | 0.4933 | 1.0 | 0.75 |
+| post-v1.0.0 | (a renseigner apres eval v4) | openai/gpt-oss-120b (reel) | v4 | 75 x1 | - | - | - |
 
 Note : la variabilite entre runs groq-large (0.4933 a 0.5467) est due au non-determinisme du LLM avec repeats=1. Relancer avec repeats=3 pour des resultats plus stables.
 
@@ -44,3 +45,8 @@ le hash du fichier de scenarios (`scenario_hash` dans les parametres MLflow).
 3. Lancer une evaluation avec le vrai LLM : `uv run python -m smartops_agent.evaluation.run --repeats 3`.
 4. Enregistrer le nouvel identifiant MLflow dans cette table.
 5. Mettre a jour `configs/gates.yaml` si les seuils `baseline` changent.
+
+**Historique des versions de prompt :**
+- v2 : modeles Groq remplaces (openai/gpt-oss-120b, openai/gpt-oss-20b), runs enregistres ci-dessus.
+- v4 (actuelle) : interdiction des tableaux markdown, retention des IDs, agent ne demande jamais d'ID.
+  Un eval run v4 est a lancer et son identifiant MLflow est a renseigner dans la table ci-dessus.

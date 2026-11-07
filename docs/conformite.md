@@ -16,8 +16,9 @@ depuis `docs/cadrage.md` (qui repond aux 7 questions du cahier) et `docs/plan.md
 | Agent avec boucle LLM et appel d'outils | `src/smartops_agent/agent/loop.py` |
 | 5 outils minimum | `src/smartops_agent/tools/` (5 outils) |
 | API REST exposant l'agent | `src/smartops_agent/api/app.py` |
+| Interface web | `frontend/` (Next.js, deploye sur Netlify) |
 | Traces de chaque interaction | `src/smartops_agent/tracing/tracer.py` |
-| LLM Groq ou Ollama | `configs/models.yaml`, ADR 0005 |
+| LLM Groq / OpenRouter / Ollama | `configs/models.yaml`, ADR 0005 |
 
 ---
 
@@ -71,11 +72,11 @@ depuis `docs/cadrage.md` (qui repond aux 7 questions du cahier) et `docs/plan.md
 |---|---|
 | Lint | ruff (pre-commit + CI) |
 | Typage strict | mypy strict (pre-commit + CI), `pyproject.toml` |
-| Tests unitaires | `tests/unit/` (coverage 89 %) |
+| Tests unitaires | `tests/unit/` (coverage 82 %, 170 tests) |
 | Tests d'integration | `tests/integration/` (LLM simule) |
 | Tests bout en bout | `tests/e2e/` |
 | Test de charge | `tests/load/locustfile.py` (Locust) |
-| Coverage >= 80 % | Gate coverage >= 0.80 (atteint : 89 %) |
+| Coverage >= 80 % | Gate coverage >= 0.80 (atteint : 82 %) |
 | Commits conventionnels | commitizen (pre-commit) |
 
 ---

@@ -26,3 +26,20 @@ Le changement entraine un increment de prompt_version (v1 -> v2) et un nouveau r
 ## Conséquences
 Le choix final est justifié par des mesures. Ollama sert aussi de solution de repli
 si l'API Groq est indisponible.
+
+## Mise a jour v4 (2026-11-07)
+
+Fournisseur OpenRouter ajoute comme alternative gratuite et sans abonnement :
+
+| Alias | Modele | Fournisseur |
+|---|---|---|
+| openrouter-large | nvidia/nemotron-3.5-lightning:free | OpenRouter |
+| openrouter-small | google/gemma-4-31b-it:free | OpenRouter |
+
+Ces modeles supportent le tool calling au format OpenAI. Ils sont utiles quand le quota
+Groq est epuise ou pour comparer la qualite. Les modeles Groq (openai/gpt-oss-120b) restent
+le defaut.
+
+Le prompt systeme est maintenant a la version v4 (interdiction des tableaux, retention des IDs,
+resolution automatique des noms en identifiants). Un run d'evaluation v4 est a effectuer
+et a enregistrer dans `docs/reproductibilite.md`.
