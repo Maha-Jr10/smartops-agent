@@ -122,6 +122,32 @@ def _count_lines(path: Path) -> int:
     return count
 
 
+def _download_from_supabase(traces_path: Path) -> bool:
+    """Download persisted traces from Supabase Storage into traces_path."""
+    try:
+        from smartops_agent.config import get_settings
+
+        settings = get_settings()
+        if not settings.supabase_url or not settings.supabase_service_role_key:
+            return False
+        from supabase import create_client
+
+        client = create_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key.get_secret_value(),
+        )
+        content: bytes = client.storage.from_("reports").download(_STORAGE_PATH)
+        if not content:
+            return False
+        traces_path.parent.mkdir(parents=True, exist_ok=True)
+        traces_path.write_bytes(content)
+        log.info("Traces downloaded from Supabase Storage (%d bytes)", len(content))
+        return True
+    except Exception:
+        log.debug("Could not download traces from Supabase Storage", exc_info=True)
+        return False
+
+
 def _upload_to_supabase(traces_path: Path) -> bool:
     """Persist the traces JSONL to Supabase Storage so it survives redeploys."""
     try:
@@ -177,6 +203,37 @@ def upload_traces(
 ) -> bool:
     """Upload current traces file to Supabase Storage (called by scheduler)."""
     return _upload_to_supabase(traces_path)
+
+
+def startup_replay(
+    traces_path: Path = Path("reports/traces/traces.jsonl"),
+) -> int:
+    """Bootstrap Prometheus counters from persisted traces on app startup.
+
+    Downloads traces.jsonl from Supabase Storage if the local file is missing,
+    then increments all Prometheus counters so Grafana shows historical activity
+    immediately after a container redeploy — same mechanism as seed injection.
+    Returns the number of traces replayed.
+    """
+    if not traces_path.exists():
+        _download_from_supabase(traces_path)
+    if not traces_path.exists():
+        log.info("Startup replay: no persisted traces found, counters start at zero")
+        return 0
+    rows: list[dict[str, Any]] = []
+    with traces_path.open(encoding="utf-8") as fh:
+        for line in fh:
+            stripped = line.strip()
+            if stripped:
+                try:
+                    rows.append(json.loads(stripped))
+                except json.JSONDecodeError:
+                    continue
+    if not rows:
+        return 0
+    _replay_metrics(rows)
+    log.info("Startup replay: replayed Prometheus metrics from %d traces", len(rows))
+    return len(rows)
 
 
 def seed_traces(

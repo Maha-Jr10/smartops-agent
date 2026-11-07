@@ -164,8 +164,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+        from smartops_agent.data.seed_traces import startup_replay
         from smartops_agent.monitoring.scheduler import start_scheduler_task
 
+        # Restore Prometheus counters from persisted traces so Grafana shows
+        # historical activity immediately after a container redeploy.
+        await asyncio.to_thread(startup_replay)
         task = start_scheduler_task()
         try:
             yield

@@ -99,15 +99,37 @@ class Tracer:
         try:
             mlflow.set_tracking_uri(get_settings().mlflow_tracking_uri)
             mlflow.set_experiment("smartops-agent-monitoring")
-            with mlflow.start_span(name="agent_run") as span:
-                span.set_inputs({"user_message": self._data.get("user_message", "")})
-                span.set_outputs({"answer": self._data.get("answer", "")})
-                span.set_attribute("role", self._data.get("role", ""))
-                span.set_attribute("iterations", self._data.get("iterations", 0))
-                span.set_attribute("escalated", self._data.get("escalated", False))
-                span.set_attribute("prompt_version", self._data.get("prompt_version", ""))
+            with mlflow.start_run(run_name="agent_run", nested=True):
+                mlflow.log_params(
+                    {
+                        "role": self._data.get("role", ""),
+                        "prompt_version": self._data.get("prompt_version", ""),
+                        "model_id": self._data.get("model_id", ""),
+                    }
+                )
+                mlflow.log_metrics(
+                    {
+                        "iterations": float(self._data.get("iterations", 0)),
+                        "escalated": float(self._data.get("escalated", False)),
+                        "answer_length": float(len(str(self._data.get("answer", "")))),
+                        "tool_call_count": float(
+                            sum(
+                                1
+                                for s in self._data.get("steps", [])
+                                if s.get("type") == "tool_call"
+                            )
+                        ),
+                        "total_latency_s": float(
+                            sum(
+                                s.get("latency_s", 0.0)
+                                for s in self._data.get("steps", [])
+                                if "latency_s" in s
+                            )
+                        ),
+                    }
+                )
         except Exception as exc:
-            log.warning("mlflow_span_failed", error_type=type(exc).__name__)
+            log.warning("mlflow_run_failed", error_type=type(exc).__name__)
 
 
 class NullTracer(Tracer):
