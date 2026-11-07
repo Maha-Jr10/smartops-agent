@@ -303,9 +303,7 @@ function ApprovalCard({ approval, onDecision }: { approval: Approval; onDecision
 
       {/* Details */}
       <div className="card-details">
-        <pre className="details-pre">
-          {JSON.stringify(approval.details, null, 2)}
-        </pre>
+        <DetailsView action={approval.action} details={approval.details} reason={approval.reason} />
       </div>
 
       {/* Footer */}
@@ -316,8 +314,8 @@ function ApprovalCard({ approval, onDecision }: { approval: Approval; onDecision
           <span className="meta-sep">·</span>
           <span className="meta-badge">{approval.role}</span>
           <span className="meta-sep">·</span>
-          <span className="meta-id" title={approval.request_id}>
-            #{approval.request_id.slice(0, 8)}
+          <span className="meta-id" title={approval.request_id ?? ""}>
+            #{(approval.request_id ?? "").slice(0, 8)}
           </span>
         </div>
 
@@ -526,6 +524,87 @@ function ApprovalCard({ approval, onDecision }: { approval: Approval; onDecision
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin-sm { animation: spin 0.7s linear infinite; }
       `}</style>
+    </div>
+  );
+}
+
+/* ── Details renderer ──────────────────────────────────────── */
+function DetailsView({
+  action,
+  details,
+  reason,
+}: {
+  action: string;
+  details: Record<string, unknown>;
+  reason?: string;
+}) {
+  if (action === "send_email") {
+    const { lead_id, subject, body } = details as {
+      lead_id?: string;
+      subject?: string;
+      body?: string;
+    };
+    return (
+      <div className="email-view">
+        {reason && <p className="email-reason">{reason}</p>}
+        <div className="email-fields">
+          <div className="email-row">
+            <span className="email-label">Destinataire</span>
+            <span className="email-val">{lead_id ?? "—"}</span>
+          </div>
+          <div className="email-row">
+            <span className="email-label">Objet</span>
+            <span className="email-val">{subject ?? "—"}</span>
+          </div>
+        </div>
+        <pre className="email-body">{body ?? ""}</pre>
+        <style>{`
+          .email-view { display: flex; flex-direction: column; gap: 8px; }
+          .email-reason {
+            margin: 0;
+            font-size: 12px;
+            color: var(--fg-muted);
+            font-style: italic;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+          }
+          .email-fields { display: flex; flex-direction: column; gap: 4px; }
+          .email-row { display: flex; gap: 8px; align-items: baseline; }
+          .email-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--fg-muted);
+            min-width: 80px;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+          .email-val {
+            font-size: 12px;
+            color: var(--fg-secondary);
+            font-family: 'Menlo', 'Consolas', monospace;
+          }
+          .email-body {
+            margin: 4px 0 0;
+            padding: 10px 12px;
+            background: var(--bg-page);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--fg-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+          }
+        `}</style>
+      </div>
+    );
+  }
+  return (
+    <div>
+      {reason && <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--fg-muted)", fontStyle: "italic" }}>{reason}</p>}
+      <pre className="details-pre">{JSON.stringify(details, null, 2)}</pre>
     </div>
   );
 }

@@ -24,6 +24,7 @@ export interface Approval {
   request_id: string;
   action: string;
   details: Record<string, unknown>;
+  reason?: string;
   requested_by: string;
   role: string;
   status: "pending" | "approved" | "rejected";
