@@ -164,8 +164,17 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+        from smartops_agent.data.seed import SeedParams, seed_database
         from smartops_agent.data.seed_traces import startup_replay
         from smartops_agent.monitoring.scheduler import start_scheduler_task
+
+        # Create the CRM database if it is missing (e.g. first deploy on Railway
+        # where the ephemeral filesystem starts empty).
+        db_path_obj = Path(effective_db)
+        if not db_path_obj.exists():
+            log.info("CRM database not found at %s — seeding now", db_path_obj)
+            await asyncio.to_thread(seed_database, db_path_obj, SeedParams())
+            log.info("CRM database ready")
 
         # Restore Prometheus counters from persisted traces so Grafana shows
         # historical activity immediately after a container redeploy.

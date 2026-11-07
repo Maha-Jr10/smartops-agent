@@ -191,3 +191,18 @@ export async function deleteSeedData(): Promise<void> {
     throw new Error((err as { detail?: string }).detail ?? "Erreur lors de la suppression");
   }
 }
+
+export async function fetchDriftReport(): Promise<string | null> {
+  try {
+    const { getSupabase } = await import("@/lib/supabase");
+    const { data } = await getSupabase().auth.getSession();
+    const token = data.session?.access_token;
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/report/drift`, { headers });
+    if (!res.ok) return null;
+    return res.text();
+  } catch {
+    return null;
+  }
+}

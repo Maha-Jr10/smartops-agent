@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import smartops_agent.api.app as app_mod
-from smartops_agent.agent.llm_client import LLMResponse
+from smartops_agent.agent.llm_client import AVAILABLE_MODELS, LLMResponse
 from smartops_agent.api.app import create_app
 from smartops_agent.api.auth import AuthUser, require_admin, require_auth
 from smartops_agent.config import Settings
@@ -198,7 +198,7 @@ def test_admin_settings_and_drift_fallback(
     invalid_model = client.put("/settings/model", json={"model_id": "unknown-model"})
     valid_model = client.put(
         "/settings/model",
-        json={"model_id": app_mod.AVAILABLE_MODELS[0]["id"]},
+        json={"model_id": AVAILABLE_MODELS[0]["id"]},
     )
     drift_report = client.get("/report/drift")
 
@@ -238,7 +238,7 @@ def test_admin_settings_update_with_supabase(
     openrouter_update = client.put(
         "/settings/openrouter-key", json={"api_key": "new-openrouter-key"}
     )
-    model_id = app_mod.AVAILABLE_MODELS[0]["id"]
+    model_id = AVAILABLE_MODELS[0]["id"]
     model_update = client.put("/settings/model", json={"model_id": model_id})
 
     assert groq_key.json()["source"] == "override"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,8 @@ from smartops_agent.tools import (
     search_crm,
 )
 from smartops_agent.tracing.tracer import Tracer
+
+log = logging.getLogger(__name__)
 
 _PROMPT_DIR = Path(__file__).parent / "prompts"
 _KNOWN_TOOL_NAMES: frozenset[str] = frozenset(s["function"]["name"] for s in TOOL_SCHEMAS)
@@ -237,6 +240,22 @@ class AgentLoop:
                             "tool_call_id": tc["id"],
                             "name": tool_name,
                             "result": te.to_dict(),
+                        }
+                    )
+                except Exception as exc:
+                    # Unexpected infrastructure failure (DB missing, IO error, …)
+                    log.exception("Unexpected error in tool %s", tool_name)
+                    _tool_label = tool_name if tool_name in _KNOWN_TOOL_NAMES else "unknown"
+                    tool_calls_total.labels(tool=_tool_label, status="error").inc()
+                    self._tracer.tool_error(name=tool_name, error=str(exc))
+                    tool_results.append(
+                        {
+                            "tool_call_id": tc["id"],
+                            "name": tool_name,
+                            "result": {
+                                "error": "TOOL_INTERNAL_ERROR",
+                                "detail": "Erreur interne de l'outil. Contactez l'administrateur.",
+                            },
                         }
                     )
 

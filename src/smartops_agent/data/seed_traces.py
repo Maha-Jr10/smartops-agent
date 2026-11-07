@@ -97,6 +97,19 @@ def _replay_metrics(rows: list[dict[str, Any]]) -> None:
         log.debug("Prometheus metrics unavailable; skipping replay", exc_info=True)
         return
 
+    # Pre-register error label series so Grafana shows 0 instead of "No data"
+    for _r in ["commercial", "delivery", "admin", "unknown"]:
+        chat_requests_total.labels(role=_r, status="error")
+    for _t in [
+        "search_crm",
+        "get_invoice_status",
+        "calculate_commission",
+        "draft_followup",
+        "request_human_action",
+        "seed",
+    ]:
+        tool_calls_total.labels(tool=_t, status="error")
+
     for row in rows:
         role = row.get("role", "commercial")
         chat_requests_total.labels(role=role, status="ok").inc()

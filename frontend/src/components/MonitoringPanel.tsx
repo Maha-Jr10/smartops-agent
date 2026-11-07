@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchMonitoringStatus, type MonitoringStatus } from "@/lib/api";
+import { fetchDriftReport, fetchMonitoringStatus, type MonitoringStatus } from "@/lib/api";
 
 type MonTab = "grafana" | "mlflow" | "evidently";
 
@@ -34,6 +34,9 @@ export default function MonitoringPanel() {
   const [active, setActive] = useState<MonTab>("grafana");
   const tab = TABS.find(t => t.id === active)!;
   const [monStatus, setMonStatus] = useState<MonitoringStatus | null>(null);
+  const [driftLoading, setDriftLoading] = useState(false);
+  const [driftBlobUrl, setDriftBlobUrl] = useState<string | null>(null);
+  const [driftFetched, setDriftFetched] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +49,23 @@ export default function MonitoringPanel() {
     poll();
     const id = setInterval(poll, 60_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, []);;
+  }, []);
+
+  useEffect(() => {
+    if (active !== "evidently" || driftFetched) return;
+    let cancelled = false;
+    setDriftLoading(true);
+    fetchDriftReport().then(html => {
+      if (cancelled) return;
+      setDriftFetched(true);
+      setDriftLoading(false);
+      if (html) {
+        const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        setDriftBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+      }
+    }).catch(() => { if (!cancelled) { setDriftFetched(true); setDriftLoading(false); } });
+    return () => { cancelled = true; };
+  }, [active, driftFetched]);
 
   return (
     <div className="mon-shell">
@@ -61,14 +80,13 @@ export default function MonitoringPanel() {
               : ""}
             {monStatus.last_run ? ` (${new Date(monStatus.last_run).toLocaleString("fr-FR")})` : ""}
           </span>
-          <a
-            href={`${_api}/report/drift`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => setActive("evidently")}
             className="mon-alert-link"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
           >
             Voir rapport
-          </a>
+          </button>
         </div>
       )}
 
@@ -99,29 +117,59 @@ export default function MonitoringPanel() {
       {/* Hint */}
       <div className="mon-hint">{tab.hint}</div>
 
-      {/* Placeholder — external services block iframe embedding (X-Frame-Options: SAMEORIGIN) */}
+      {/* Frames */}
       <div className="mon-frames">
-        {TABS.map(t => (
+        {/* Evidently — served as a blob URL to bypass auth requirement */}
+        <div style={{ display: active === "evidently" ? "flex" : "none", position: "absolute", inset: 0, flexDirection: "column" }}>
+          {driftLoading && (
+            <div className="mon-placeholder" style={{ position: "absolute", inset: 0 }}>
+              <div className="mon-placeholder-inner">
+                <p className="mon-placeholder-desc">Chargement du rapport…</p>
+              </div>
+            </div>
+          )}
+          {!driftLoading && driftFetched && !driftBlobUrl && (
+            <div className="mon-placeholder" style={{ position: "absolute", inset: 0 }}>
+              <div className="mon-placeholder-inner">
+                <div className="mon-placeholder-icon" style={{ color: TAB_COLOR.evidently }}><IconExternalLink size={32} /></div>
+                <p className="mon-placeholder-title">Evidently</p>
+                <p className="mon-placeholder-desc">Rapport non disponible. Injectez des données de démonstration depuis les paramètres admin.</p>
+              </div>
+            </div>
+          )}
+          {driftBlobUrl && (
+            <iframe
+              key={driftBlobUrl}
+              src={driftBlobUrl}
+              sandbox="allow-scripts"
+              className="mon-iframe mon-iframe-visible"
+              title="Rapport de dérive Evidently"
+            />
+          )}
+        </div>
+
+        {/* Grafana and MLflow — placeholder (X-Frame-Options: SAMEORIGIN blocks iframe) */}
+        {(["grafana", "mlflow"] as MonTab[]).map(t => (
           <div
-            key={t.id}
+            key={t}
             className="mon-placeholder"
-            style={{ display: active === t.id ? "flex" : "none" }}
+            style={{ display: active === t ? "flex" : "none" }}
           >
             <div className="mon-placeholder-inner">
-              <div className="mon-placeholder-icon" style={{ color: TAB_COLOR[t.id] }}>
+              <div className="mon-placeholder-icon" style={{ color: TAB_COLOR[t] }}>
                 <IconExternalLink size={32} />
               </div>
-              <p className="mon-placeholder-title">{t.label}</p>
-              <p className="mon-placeholder-desc">{t.hint}</p>
+              <p className="mon-placeholder-title">{TABS.find(x => x.id === t)!.label}</p>
+              <p className="mon-placeholder-desc">{TABS.find(x => x.id === t)!.hint}</p>
               <a
-                href={t.url}
+                href={TABS.find(x => x.id === t)!.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mon-placeholder-btn"
-                style={{ background: TAB_COLOR[t.id] }}
+                style={{ background: TAB_COLOR[t] }}
               >
                 <IconExternalLink size={14} />
-                Ouvrir {t.label}
+                Ouvrir {TABS.find(x => x.id === t)!.label}
               </a>
             </div>
           </div>
