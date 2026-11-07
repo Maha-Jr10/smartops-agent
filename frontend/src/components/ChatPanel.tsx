@@ -380,6 +380,16 @@ export default function ChatPanel() {
   );
 }
 
+/* ── Minimal markdown renderer (bold + bullets only) ────────── */
+function renderMarkdown(text: string) {
+  const normalized = text.replace(/^[*-] /gm, "• ");
+  return normalized.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={i}>{part.slice(2, -2)}</strong>
+      : part
+  );
+}
+
 /* ── Message bubble ─────────────────────────────────────────── */
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser  = msg.role === "user";
@@ -393,7 +403,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       )}
       <div className={`bubble-col ${isUser ? "bubble-col-user" : ""}`}>
         <div className={`bubble ${isUser ? "bubble-user" : isError ? "bubble-error" : "bubble-agent"}`}>
-          <p className="bubble-text">{msg.text}</p>
+          <p className="bubble-text">{isUser ? msg.text : renderMarkdown(msg.text)}</p>
         </div>
         <div className={`bubble-meta ${isUser ? "bubble-meta-right" : ""}`}>
           <span className="bubble-time">{time}</span>
