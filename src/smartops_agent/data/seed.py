@@ -77,49 +77,33 @@ def _det_id(prefix: str, index: int) -> str:
     return f"{prefix}_{h}"
 
 
-_FIRST_NAMES = [
-    "Mohamed",
-    "Ahmed",
-    "Youssef",
-    "Hamza",
-    "Khalid",
-    "Rachid",
-    "Karim",
-    "Mehdi",
-    "Amine",
-    "Ayoub",
-    "Fatima",
-    "Khadija",
-    "Zineb",
-    "Meryem",
-    "Nadia",
-    "Samira",
-    "Laila",
-    "Amina",
-    "Salma",
-    "Imane",
-]
-_LAST_NAMES = [
-    "Benali",
-    "Benomar",
-    "El Idrissi",
-    "El Alaoui",
-    "Tahiri",
-    "Chraibi",
-    "Bennani",
-    "Berrada",
-    "Kettani",
-    "Lamrani",
-    "Tazi",
-    "Rhazi",
-    "Filali",
-    "Drissi",
-    "Hajji",
-    "Bensalem",
-    "Fassi",
-    "Qadiri",
-    "Sebti",
-    "Mrani",
+_FULL_NAMES = [
+    "Amiri Abdelhadi",
+    "Bahtaoui Abderrahmane",
+    "Atmani Maroua",
+    "Ayegou Chaymae",
+    "Benjarnij Nazha",
+    "Bensaid Rim",
+    "Berrahioui Hajar",
+    "Bihkak Asmae",
+    "Boujnoun Nisrine",
+    "Chaibi Douae",
+    "El Khadiri Farah",
+    "Chebiha Fatima Zahrae",
+    "Chkhichkh Khadija",
+    "El Bardi Salma",
+    "El Haouari Abdelhafid",
+    "El Mrabet Maroua",
+    "El Mustad Meryem",
+    "En-Nasiri Mohamed",
+    "Ez Zahy Mouhssin",
+    "Ibnyassine Aya",
+    "Kellouai Nada",
+    "Majdoub Mohamed Aymane",
+    "Mohtarim Aicha",
+    "Nadir Hatim",
+    "Skouf Doha",
+    "Zahraoui Ismail",
 ]
 _PROJECT_NAMES = [
     "Refonte portail",
@@ -136,7 +120,7 @@ _PROJECT_NAMES = [
 
 
 def _name(rng: random.Random) -> str:
-    return f"{rng.choice(_FIRST_NAMES)} {rng.choice(_LAST_NAMES)}"
+    return rng.choice(_FULL_NAMES)
 
 
 def _email(name: str, domain: str = "example.com") -> str:
